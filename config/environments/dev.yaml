@@ -1,0 +1,4 @@
+# Development environment configuration
+environment: dev
+debug: true
+

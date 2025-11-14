@@ -1,0 +1,21 @@
+{
+  "experiments": [
+    {
+      "id": "exp_001_xxx",
+      "name": "Example Experiment 1",
+      "description": "Placeholder experiment",
+      "status": "pending",
+      "created_date": "2024-01-01",
+      "results": null
+    },
+    {
+      "id": "exp_002_yyy",
+      "name": "Example Experiment 2",
+      "description": "Placeholder experiment",
+      "status": "pending",
+      "created_date": "2024-01-01",
+      "results": null
+    }
+  ]
+}
+
