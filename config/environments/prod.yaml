@@ -1,4 +1,0 @@
-# Production environment configuration
-environment: prod
-debug: false
-

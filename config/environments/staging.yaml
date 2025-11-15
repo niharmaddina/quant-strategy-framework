@@ -1,4 +1,0 @@
-# Staging environment configuration
-environment: staging
-debug: false
-
