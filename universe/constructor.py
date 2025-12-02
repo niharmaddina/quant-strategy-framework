@@ -44,7 +44,7 @@ class UniverseConstructor:
     RECOMMENDED APPROACH:
     - Start with SPY components or sector ETFs
     - Filter by options volume and liquidity
-     - Add 2-3 stocks per sector for diversification
+    - Add 2-3 stocks per sector for diversification
     """
     
     # Pre-defined universe examples
@@ -114,6 +114,9 @@ class UniverseConstructor:
         Returns:
             Filtered list of symbols
         """
+        if min_volume < 0:
+            raise ValueError(f"min_volume must be non-negative, got {min_volume}")
+        
         filtered = []
         for symbol in self.symbols:
             try:
@@ -121,10 +124,11 @@ class UniverseConstructor:
                 info = ticker.info
                 avg_volume = info.get('averageVolume', 0)
                 
-                if avg_volume >= min_volume:
+                if avg_volume and avg_volume >= min_volume:
                     filtered.append(symbol)
             except Exception as e:
-                print(f"Error checking {symbol}: {e}")
+                # Silently skip symbols that fail (could use logging in production)
+                continue
         
         return filtered
     
@@ -181,19 +185,46 @@ class UniverseConstructor:
                     'beta': info.get('beta', 0)
                 })
             except Exception as e:
-                print(f"Error fetching info for {symbol}: {e}")
+                # Add entry with error info instead of printing
+                info_list.append({
+                    'symbol': symbol,
+                    'name': f'Error: {str(e)[:50]}',
+                    'sector': 'N/A',
+                    'market_cap': 0,
+                    'avg_volume': 0,
+                    'beta': 0
+                })
         
         return pd.DataFrame(info_list)
     
     def export_universe(self, filepath: str):
-        """Export universe to file."""
-        with open(filepath, 'w') as f:
-            for symbol in self.symbols:
-                f.write(f"{symbol}\n")
+        """
+        Export universe to file.
+        
+        Raises:
+            IOError: If file cannot be written
+        """
+        try:
+            with open(filepath, 'w') as f:
+                for symbol in self.symbols:
+                    f.write(f"{symbol}\n")
+        except IOError as e:
+            raise IOError(f"Failed to export universe to {filepath}: {e}")
     
     @staticmethod
     def load_universe(filepath: str) -> List[str]:
-        """Load universe from file."""
-        with open(filepath, 'r') as f:
-            return [line.strip() for line in f if line.strip()]
+        """
+        Load universe from file.
+        
+        Raises:
+            FileNotFoundError: If file does not exist
+            IOError: If file cannot be read
+        """
+        try:
+            with open(filepath, 'r') as f:
+                return [line.strip() for line in f if line.strip()]
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Universe file not found: {filepath}")
+        except IOError as e:
+            raise IOError(f"Failed to load universe from {filepath}: {e}")
 

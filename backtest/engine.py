@@ -32,7 +32,26 @@ class BacktestEngine:
             initial_capital: Starting capital
             position_size: Fraction of capital to use per trade
             commission: Commission rate per trade
+        
+        Raises:
+            ValueError: If data is invalid or missing required columns
         """
+        # Validate inputs
+        if data.empty:
+            raise ValueError("Data DataFrame is empty")
+        if signals.empty:
+            raise ValueError("Signals DataFrame is empty")
+        if 'close' not in data.columns:
+            raise ValueError("Data must contain 'close' column")
+        if 'signal' not in signals.columns:
+            raise ValueError("Signals must contain 'signal' column")
+        if initial_capital <= 0:
+            raise ValueError(f"Initial capital must be positive, got {initial_capital}")
+        if not 0 < position_size <= 1:
+            raise ValueError(f"Position size must be between 0 and 1, got {position_size}")
+        if commission < 0:
+            raise ValueError(f"Commission must be non-negative, got {commission}")
+        
         self.data = data.copy()
         self.signals = signals.copy()
         self.initial_capital = initial_capital
@@ -48,6 +67,9 @@ class BacktestEngine:
         
         Returns:
             DataFrame with backtest results
+        
+        Raises:
+            ValueError: If data and signals cannot be aligned
         """
         df = self.data.copy()
         signals = self.signals.copy()
@@ -58,10 +80,18 @@ class BacktestEngine:
         if 'date' in signals.columns:
             signals = signals.set_index('date')
         
+        # Validate index alignment
+        if df.index.empty:
+            raise ValueError("Data index is empty after processing")
+        
         # Merge data and signals
         backtest_df = pd.DataFrame(index=df.index)
         backtest_df['price'] = df['close']
         backtest_df['signal'] = signals['signal'].reindex(df.index, fill_value=0)
+        
+        # Validate we have price data
+        if backtest_df['price'].isna().all():
+            raise ValueError("All price values are NaN")
         
         # Initialize tracking variables
         capital = self.initial_capital
@@ -195,11 +225,21 @@ class BacktestEngine:
     
     def _calculate_sharpe(self, returns: pd.Series, risk_free_rate: float = 0.02) -> float:
         """Calculate Sharpe ratio (annualized)."""
-        if len(returns) == 0 or returns.std() == 0:
+        if len(returns) == 0:
+            return 0.0
+        
+        std_dev = returns.std()
+        if std_dev == 0 or np.isnan(std_dev):
             return 0.0
         
         excess_returns = returns.mean() * 252 - risk_free_rate
-        return excess_returns / (returns.std() * np.sqrt(252))
+        sharpe = excess_returns / (std_dev * np.sqrt(252))
+        
+        # Handle NaN or infinite values
+        if np.isnan(sharpe) or np.isinf(sharpe):
+            return 0.0
+        
+        return sharpe
     
     def _calculate_max_drawdown(self, equity: pd.Series) -> float:
         """Calculate maximum drawdown percentage."""

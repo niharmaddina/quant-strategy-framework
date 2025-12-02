@@ -21,6 +21,15 @@ class SwingTradingIndicators:
         Args:
             data: DataFrame with columns: date, open, high, low, close, volume
         """
+        # Validate required columns
+        required_columns = ['open', 'high', 'low', 'close']
+        missing_columns = [col for col in required_columns if col not in data.columns]
+        if missing_columns:
+            raise ValueError(f"Missing required columns: {missing_columns}")
+        
+        if data.empty:
+            raise ValueError("DataFrame is empty")
+        
         self.data = data.copy()
         self.signals = pd.DataFrame(index=data.index)
         self._calculate_all_indicators()
@@ -56,8 +65,10 @@ class SwingTradingIndicators:
         gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
         
-        rs = gain / loss
+        # Avoid division by zero
+        rs = gain / loss.replace(0, np.nan)
         df['rsi'] = 100 - (100 / (1 + rs))
+        df['rsi'] = df['rsi'].fillna(50.0)  # Default to neutral RSI when loss is zero
         self.data = df
     
     def _calculate_macd(self, df: pd.DataFrame):
@@ -78,8 +89,13 @@ class SwingTradingIndicators:
         bb_std = df['close'].rolling(window=period).std()
         df['bb_upper'] = df['bb_middle'] + (bb_std * std_dev)
         df['bb_lower'] = df['bb_middle'] - (bb_std * std_dev)
-        df['bb_width'] = (df['bb_upper'] - df['bb_lower']) / df['bb_middle']
-        df['bb_position'] = (df['close'] - df['bb_lower']) / (df['bb_upper'] - df['bb_lower'])
+        
+        # Avoid division by zero
+        df['bb_width'] = (df['bb_upper'] - df['bb_lower']) / df['bb_middle'].replace(0, np.nan)
+        denominator = (df['bb_upper'] - df['bb_lower']).replace(0, np.nan)
+        df['bb_position'] = (df['close'] - df['bb_lower']) / denominator
+        df['bb_width'] = df['bb_width'].fillna(0.0)
+        df['bb_position'] = df['bb_position'].fillna(0.5)  # Default to middle when range is zero
         self.data = df
     
     def _calculate_stochastic(self, df: pd.DataFrame, k_period: int = 14, d_period: int = 3):
@@ -87,7 +103,10 @@ class SwingTradingIndicators:
         low_min = df['low'].rolling(window=k_period).min()
         high_max = df['high'].rolling(window=k_period).max()
         
-        df['stoch_k'] = 100 * ((df['close'] - low_min) / (high_max - low_min))
+        # Avoid division by zero when high_max == low_min
+        denominator = (high_max - low_min).replace(0, np.nan)
+        df['stoch_k'] = 100 * ((df['close'] - low_min) / denominator)
+        df['stoch_k'] = df['stoch_k'].fillna(50.0)  # Default to neutral when range is zero
         df['stoch_d'] = df['stoch_k'].rolling(window=d_period).mean()
         self.data = df
     

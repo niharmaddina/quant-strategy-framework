@@ -33,9 +33,27 @@ class DataFetcher:
         
         Returns:
             DataFrame with OHLCV data
+        
+        Raises:
+            ValueError: If dates are invalid or data is empty
+            ConnectionError: If network request fails
         """
-        ticker = yf.Ticker(symbol)
-        data = ticker.history(start=start_date, end=end_date, interval=interval)
+        # Validate inputs
+        if not symbol or not isinstance(symbol, str):
+            raise ValueError(f"Invalid symbol: {symbol}")
+        
+        try:
+            # Validate date formats
+            datetime.strptime(start_date, "%Y-%m-%d")
+            datetime.strptime(end_date, "%Y-%m-%d")
+        except ValueError as e:
+            raise ValueError(f"Invalid date format. Use YYYY-MM-DD. Error: {e}")
+        
+        try:
+            ticker = yf.Ticker(symbol)
+            data = ticker.history(start=start_date, end=end_date, interval=interval)
+        except Exception as e:
+            raise ConnectionError(f"Failed to fetch data for {symbol}: {e}")
         
         if data.empty:
             raise ValueError(f"No data found for {symbol} from {start_date} to {end_date}")
@@ -61,13 +79,25 @@ class DataFetcher:
         
         Returns:
             Dictionary with 'calls' and 'puts' DataFrames
+        
+        Raises:
+            ValueError: If symbol is invalid or expiration date format is wrong
         """
+        if not symbol or not isinstance(symbol, str):
+            raise ValueError(f"Invalid symbol: {symbol}")
+        
+        if expiration_date:
+            try:
+                datetime.strptime(expiration_date, "%Y-%m-%d")
+            except ValueError:
+                raise ValueError(f"Invalid expiration_date format. Use YYYY-MM-DD, got: {expiration_date}")
+        
         ticker = yf.Ticker(symbol)
         
         try:
             expirations = ticker.options
             if not expirations:
-                return {'calls': pd.DataFrame(), 'puts': pd.DataFrame()}
+                return {'calls': pd.DataFrame(), 'puts': pd.DataFrame(), 'expiration': None}
             
             # Use specified expiration or nearest
             if expiration_date:
@@ -86,8 +116,8 @@ class DataFetcher:
                 'expiration': exp_date
             }
         except Exception as e:
-            print(f"Error fetching options for {symbol}: {e}")
-            return {'calls': pd.DataFrame(), 'puts': pd.DataFrame()}
+            # Return empty DataFrames instead of printing error
+            return {'calls': pd.DataFrame(), 'puts': pd.DataFrame(), 'expiration': None, 'error': str(e)}
     
     def fetch_multiple_symbols(
         self,

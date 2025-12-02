@@ -22,9 +22,11 @@ class BacktestVisualizer:
     
     def plot_equity_curve(self, figsize=(12, 6)):
         """Plot equity curve."""
-        if self.engine.results is None:
-            print("No backtest results available. Run backtest first.")
-            return
+        if self.engine.results is None or self.engine.results.empty:
+            raise ValueError("No backtest results available. Run backtest first.")
+        
+        if 'equity' not in self.engine.results.columns:
+            raise ValueError("Results missing 'equity' column")
         
         fig, ax = plt.subplots(figsize=figsize)
         
@@ -44,11 +46,16 @@ class BacktestVisualizer:
     
     def plot_returns_distribution(self, figsize=(10, 6)):
         """Plot distribution of returns."""
-        if self.engine.results is None:
-            print("No backtest results available. Run backtest first.")
-            return
+        if self.engine.results is None or self.engine.results.empty:
+            raise ValueError("No backtest results available. Run backtest first.")
+        
+        if 'returns' not in self.engine.results.columns:
+            raise ValueError("Results missing 'returns' column")
         
         returns = self.engine.results['returns'].dropna()
+        
+        if len(returns) == 0:
+            raise ValueError("No valid returns data to plot")
         
         fig, ax = plt.subplots(figsize=figsize)
         ax.hist(returns * 100, bins=50, edgecolor='black', alpha=0.7)
@@ -63,13 +70,14 @@ class BacktestVisualizer:
     
     def plot_trades(self, figsize=(14, 8)):
         """Plot price chart with trade markers."""
-        if self.engine.results is None:
-            print("No backtest results available. Run backtest first.")
-            return
+        if self.engine.results is None or self.engine.results.empty:
+            raise ValueError("No backtest results available. Run backtest first.")
         
         if self.engine.trades.empty:
-            print("No trades to plot.")
-            return
+            raise ValueError("No trades to plot.")
+        
+        if 'price' not in self.engine.results.columns:
+            raise ValueError("Results missing 'price' column")
         
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=figsize, sharex=True)
         
@@ -112,9 +120,11 @@ class BacktestVisualizer:
     
     def plot_drawdown(self, figsize=(12, 6)):
         """Plot drawdown chart."""
-        if self.engine.results is None:
-            print("No backtest results available. Run backtest first.")
-            return
+        if self.engine.results is None or self.engine.results.empty:
+            raise ValueError("No backtest results available. Run backtest first.")
+        
+        if 'equity' not in self.engine.results.columns:
+            raise ValueError("Results missing 'equity' column")
         
         equity = self.engine.results['equity']
         peak = equity.expanding().max()
@@ -133,9 +143,13 @@ class BacktestVisualizer:
     
     def plot_all(self, figsize=(14, 10)):
         """Create a comprehensive dashboard."""
-        if self.engine.results is None:
-            print("No backtest results available. Run backtest first.")
-            return
+        if self.engine.results is None or self.engine.results.empty:
+            raise ValueError("No backtest results available. Run backtest first.")
+        
+        required_cols = ['equity', 'price', 'returns']
+        missing_cols = [col for col in required_cols if col not in self.engine.results.columns]
+        if missing_cols:
+            raise ValueError(f"Results missing required columns: {missing_cols}")
         
         fig = plt.figure(figsize=figsize)
         gs = fig.add_gridspec(3, 2, hspace=0.3, wspace=0.3)
