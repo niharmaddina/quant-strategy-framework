@@ -3,12 +3,13 @@ Example usage of the quant strategy framework.
 Demonstrates how to use the components programmatically.
 """
 
-from data.fetcher import DataFetcher
-from universe.constructor import UniverseConstructor
-from strategy.indicators import SwingTradingIndicators
+import matplotlib.pyplot as plt
+
 from backtest.engine import BacktestEngine
 from backtest.visualizer import BacktestVisualizer
-import matplotlib.pyplot as plt
+from data.fetcher import DataFetcher
+from strategy.indicators import SwingTradingIndicators
+from universe.constructor import UniverseConstructor
 
 
 def example_universe_construction():

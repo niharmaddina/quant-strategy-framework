@@ -1,0 +1,44 @@
+backtest:
+  default_commission: 0.001
+  default_initial_capital: 100000
+  default_position_size: 0.1
+  risk_free_rate: 0.02
+data:
+  cache_dir: data_cache
+  cache_enabled: true
+  cache_expiry_hours: 24
+  rate_limit_delay: 0.5
+  retry_attempts: 3
+  retry_delay: 1.0
+defaults:
+  lookback_days: 365
+  symbols:
+  - AAPL
+  - MSFT
+logging:
+  console_output: true
+  level: INFO
+  log_dir: logs
+  log_file: strategy.log
+strategy:
+  atr_period: 14
+  bb_period: 20
+  bb_std_dev: 2.0
+  macd_fast: 12
+  macd_signal: 9
+  macd_slow: 26
+  min_confidence: 0.6
+  rsi_period: 14
+  signal_threshold: 3
+  sma_long: 200
+  sma_medium: 50
+  sma_short: 20
+  stoch_d_period: 3
+  stoch_k_period: 14
+universe:
+  default_min_volume: 1000000
+  default_stocks_per_sector: 2
+visualization:
+  figure_dpi: 150
+  figure_format: png
+  output_dir: output

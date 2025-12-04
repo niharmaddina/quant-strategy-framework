@@ -3,9 +3,10 @@ Technical indicators for swing trading strategy.
 Generates signals for manual options trading.
 """
 
-import pandas as pd
+from typing import Dict, Optional
+
 import numpy as np
-from typing import Dict, Tuple
+import pandas as pd
 
 
 class SwingTradingIndicators:

@@ -3,10 +3,12 @@ Backtesting engine for quantitative strategies.
 Provides basic performance metrics.
 """
 
-import pandas as pd
-import numpy as np
-from typing import Dict, Optional
+import json
 from datetime import datetime
+from typing import Dict, Optional
+
+import numpy as np
+import pandas as pd
 
 
 class BacktestEngine:
@@ -202,11 +204,15 @@ class BacktestEngine:
         # Risk metrics
         if len(returns) > 0:
             sharpe_ratio = self._calculate_sharpe(returns)
+            sortino_ratio = self._calculate_sortino(returns)
             max_drawdown = self._calculate_max_drawdown(equity)
+            calmar_ratio = self._calculate_calmar(total_return, max_drawdown)
             volatility = returns.std() * np.sqrt(252) * 100  # Annualized
         else:
             sharpe_ratio = 0
+            sortino_ratio = 0
             max_drawdown = 0
+            calmar_ratio = 0
             volatility = 0
         
         self.metrics = {
@@ -219,6 +225,8 @@ class BacktestEngine:
             'profit_factor': profit_factor,
             'avg_return_per_trade_pct': avg_return_per_trade,
             'sharpe_ratio': sharpe_ratio,
+            'sortino_ratio': sortino_ratio,
+            'calmar_ratio': calmar_ratio,
             'max_drawdown_pct': max_drawdown,
             'volatility_pct': volatility
         }
@@ -250,6 +258,66 @@ class BacktestEngine:
         drawdown = (equity - peak) / peak
         return abs(drawdown.min()) * 100
     
+    def _calculate_sortino(self, returns: pd.Series, risk_free_rate: float = 0.02) -> float:
+        """
+        Calculate Sortino ratio (downside deviation only).
+        
+        Args:
+            returns: Series of returns
+            risk_free_rate: Annual risk-free rate (default: 0.02)
+        
+        Returns:
+            Sortino ratio (annualized)
+        """
+        if len(returns) == 0:
+            return 0.0
+        
+        # Only consider negative returns (downside)
+        downside_returns = returns[returns < 0]
+        
+        if len(downside_returns) == 0:
+            # No downside, return high value or 0
+            return 0.0
+        
+        downside_std = downside_returns.std() * np.sqrt(252)
+        
+        if downside_std == 0 or np.isnan(downside_std):
+            return 0.0
+        
+        excess_return = returns.mean() * 252 - risk_free_rate
+        sortino = excess_return / downside_std
+        
+        # Handle NaN or infinite values
+        if np.isnan(sortino) or np.isinf(sortino):
+            return 0.0
+        
+        return sortino
+    
+    def _calculate_calmar(self, total_return_pct: float, max_drawdown_pct: float) -> float:
+        """
+        Calculate Calmar ratio (return / max drawdown).
+        
+        Args:
+            total_return_pct: Total return percentage
+            max_drawdown_pct: Maximum drawdown percentage
+        
+        Returns:
+            Calmar ratio
+        """
+        if max_drawdown_pct == 0:
+            return 0.0
+        
+        # Convert percentage to decimal for calculation
+        total_return = total_return_pct / 100
+        max_drawdown = max_drawdown_pct / 100
+        
+        calmar = total_return / max_drawdown
+        
+        if np.isnan(calmar) or np.isinf(calmar):
+            return 0.0
+        
+        return calmar
+    
     def get_metrics(self) -> Dict:
         """Get calculated performance metrics."""
         return self.metrics.copy()
@@ -268,6 +336,8 @@ class BacktestEngine:
         print(f"Profit Factor:       {self.metrics['profit_factor']:.2f}")
         print(f"Avg Return/Trade:    {self.metrics['avg_return_per_trade_pct']:.2f}%")
         print(f"Sharpe Ratio:        {self.metrics['sharpe_ratio']:.2f}")
+        print(f"Sortino Ratio:       {self.metrics['sortino_ratio']:.2f}")
+        print(f"Calmar Ratio:        {self.metrics['calmar_ratio']:.2f}")
         print(f"Max Drawdown:        {self.metrics['max_drawdown_pct']:.2f}%")
         print(f"Volatility (Ann):    {self.metrics['volatility_pct']:.2f}%")
         print("="*50 + "\n")
@@ -275,4 +345,50 @@ class BacktestEngine:
     def get_trades(self) -> pd.DataFrame:
         """Get trade log."""
         return self.trades.copy() if not self.trades.empty else pd.DataFrame()
+    
+    def export_results_to_csv(self, filepath: str):
+        """
+        Export backtest results to CSV file.
+        
+        Args:
+            filepath: Path to output CSV file
+        """
+        if self.results is None:
+            raise ValueError("No backtest results available. Run backtest first.")
+        
+        self.results.to_csv(filepath, index=True)
+    
+    def export_trades_to_csv(self, filepath: str):
+        """
+        Export trade log to CSV file.
+        
+        Args:
+            filepath: Path to output CSV file
+        """
+        if self.trades.empty:
+            raise ValueError("No trades to export.")
+        
+        self.trades.to_csv(filepath, index=False)
+    
+    def export_metrics_to_json(self, filepath: str):
+        """
+        Export metrics to JSON file.
+        
+        Args:
+            filepath: Path to output JSON file
+        """
+        import json
+        
+        # Convert numpy types to native Python types for JSON serialization
+        metrics_serializable = {}
+        for key, value in self.metrics.items():
+            if isinstance(value, (np.integer, np.floating)):
+                metrics_serializable[key] = float(value)
+            elif isinstance(value, (int, float)):
+                metrics_serializable[key] = value
+            else:
+                metrics_serializable[key] = str(value)
+        
+        with open(filepath, 'w') as f:
+            json.dump(metrics_serializable, f, indent=2)
 

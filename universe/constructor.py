@@ -3,8 +3,9 @@ Universe construction for quantitative strategy.
 Provides guidance and utilities for building a focused trading universe.
 """
 
+from typing import Dict, List, Optional
+
 import pandas as pd
-from typing import List, Dict, Optional
 import yfinance as yf
 
 
