@@ -19,6 +19,13 @@ from data.fetcher import DataFetcher
 from strategy.indicators import SwingTradingIndicators
 from universe.constructor import UniverseConstructor
 
+# Default frozen universe (manual / survivorship-bias minimizing)
+DEFAULT_FROZEN_UNIVERSE_FILE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "universe",
+    "universe_mean_reversion_manual_50.txt",
+)
+
 
 def run_strategy(
     symbols: list,
@@ -54,13 +61,22 @@ def run_strategy(
     all_results = {}
     total_symbols = len(symbols)
     
+    # Batch fetch all data first to minimize API calls
+    print(f"\nFetching data for {total_symbols} symbols in batches...")
+    all_data = fetcher.fetch_multiple_symbols(
+        symbols, start_date, end_date, interval="1d", batch_size=5
+    )
+    
     for idx, symbol in enumerate(symbols, 1):
         print(f"\n[{idx}/{total_symbols}] Processing {symbol}...")
         
         try:
-            # Fetch stock data
-            data = fetcher.fetch_stock_data(symbol, start_date, end_date)
-            print(f"  ✓ Fetched {len(data)} days of data")
+            # Use pre-fetched data
+            data = all_data.get(symbol)
+            if data is None or data.empty:
+                print(f"  ⚠ No data available for {symbol}, skipping...")
+                continue
+            print(f"  ✓ Using {len(data)} days of data")
             
             # Show data summary
             summary = fetcher.get_data_summary(data)
@@ -180,7 +196,15 @@ def main():
     parser.add_argument('--no-plot', action='store_true',
                         help='Skip generating plots')
     parser.add_argument('--universe', action='store_true',
-                        help='Use predefined balanced universe')
+                        help='Use frozen manual universe (recommended; avoids survivorship/selection bias)')
+    parser.add_argument('--universe-file', type=str, default=None,
+                        help='Load a fixed universe from a .txt or .csv file (avoids optimized selection bias)')
+    parser.add_argument('--universe-manual', action='store_true',
+                        help='Build a manual sector-balanced universe (no metadata filters; avoids look-ahead from current fundamentals)')
+    parser.add_argument('--target-size', type=int, default=20,
+                        help='Target number of symbols when building a universe (default: 20)')
+    parser.add_argument('--stocks-per-sector', type=int, default=None,
+                        help='If set with --universe-manual, pick N tickers per sector (overrides --target-size)')
     parser.add_argument('--export', type=str, default=None,
                         help='Export results to directory (optional)')
     
@@ -212,9 +236,29 @@ def main():
     
     # Use universe if requested
     if args.universe:
+        # Default: frozen universe to minimize survivorship/selection bias and avoid yfinance metadata calls
+        if args.universe_file is None and not args.universe_manual:
+            args.universe_file = DEFAULT_FROZEN_UNIVERSE_FILE
+
+    if args.universe_file:
+        # Frozen universe from file (best for avoiding selection/survivorship bias)
+        loaded = UniverseConstructor.load_universe(args.universe_file)
+        args.symbols = [normalize_symbol(s) for s in loaded]
+        print(f"✓ Loaded universe from file: {len(args.symbols)} symbols")
+        print(f"Symbols: {', '.join(args.symbols)}")
+    elif args.universe_manual:
+        # Manual sector-balanced universe (no yfinance metadata filters)
+        print("Building manual sector-balanced universe...")
         universe = UniverseConstructor()
-        args.symbols = universe.create_sector_balanced_universe(stocks_per_sector=2)
-        print(f"Using balanced universe: {args.symbols}")
+        args.symbols = universe.create_manual_sector_balanced_universe(
+            target_size=args.target_size,
+            stocks_per_sector=args.stocks_per_sector,
+            include_index_etfs=True
+        )
+        print(f"✓ Built manual universe: {len(args.symbols)} symbols")
+        print(f"Symbols: {', '.join(args.symbols)}")
+    # Note: we intentionally do NOT auto-build an "optimized" universe here anymore,
+    # because it relies on current yfinance metadata and can introduce selection bias.
     
     # Run strategy
     results = run_strategy(

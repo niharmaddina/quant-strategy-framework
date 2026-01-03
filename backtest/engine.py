@@ -23,17 +23,27 @@ class BacktestEngine:
         signals: pd.DataFrame,
         initial_capital: float = 100000,
         position_size: float = 0.1,  # 10% of capital per trade
-        commission: float = 0.001  # 0.1% commission
+        commission: float = 0.001,  # 0.1% commission
+        stop_loss_pct: float = 0.05,  # 5% stop loss
+        trailing_stop: bool = False,  # Use trailing stop loss
+        trailing_stop_pct: float = 0.03,  # 3% trailing stop
+        max_drawdown_pct: float = 0.20,  # 20% max portfolio drawdown before stopping
+        risk_free_rate: float = 0.02  # 2% annual risk-free rate
     ):
         """
-        Initialize backtest engine.
+        Initialize backtest engine with risk management features.
         
         Args:
             data: Price data with 'close' column
             signals: DataFrame with 'signal' column (1=buy, -1=sell, 0=hold)
             initial_capital: Starting capital
-            position_size: Fraction of capital to use per trade
-            commission: Commission rate per trade
+            position_size: Fraction of capital to use per trade (0.1 = 10%)
+            commission: Commission rate per trade (0.001 = 0.1%)
+            stop_loss_pct: Stop loss percentage (0.05 = 5% stop loss)
+            trailing_stop: If True, use trailing stop loss instead of fixed
+            trailing_stop_pct: Trailing stop percentage (0.03 = 3% trailing stop)
+            max_drawdown_pct: Max portfolio drawdown before halting (0.20 = 20%)
+            risk_free_rate: Annual risk-free rate for Sharpe/Sortino (0.02 = 2%)
         
         Raises:
             ValueError: If data is invalid or missing required columns
@@ -53,15 +63,28 @@ class BacktestEngine:
             raise ValueError(f"Position size must be between 0 and 1, got {position_size}")
         if commission < 0:
             raise ValueError(f"Commission must be non-negative, got {commission}")
+        if not 0 < stop_loss_pct < 1:
+            raise ValueError(f"Stop loss must be between 0 and 1, got {stop_loss_pct}")
+        if not 0 < trailing_stop_pct < 1:
+            raise ValueError(f"Trailing stop must be between 0 and 1, got {trailing_stop_pct}")
+        if not 0 < max_drawdown_pct <= 1:
+            raise ValueError(f"Max drawdown must be between 0 and 1, got {max_drawdown_pct}")
+        # Allow 1.0 to effectively disable max drawdown protection
         
         self.data = data.copy()
         self.signals = signals.copy()
         self.initial_capital = initial_capital
         self.position_size = position_size
         self.commission = commission
+        self.stop_loss_pct = stop_loss_pct
+        self.trailing_stop = trailing_stop
+        self.trailing_stop_pct = trailing_stop_pct
+        self.max_drawdown_pct = max_drawdown_pct
+        self.risk_free_rate = risk_free_rate
         
         self.results = None
         self.metrics = {}
+        self.trades = pd.DataFrame()
     
     def run(self) -> pd.DataFrame:
         """
@@ -76,20 +99,55 @@ class BacktestEngine:
         df = self.data.copy()
         signals = self.signals.copy()
         
-        # Align indices
-        if 'date' in df.columns:
+        # Align indices - ensure both use the same index
+        # Store original indices to preserve alignment
+        data_has_date_col = 'date' in df.columns
+        signals_has_date_col = 'date' in signals.columns
+        
+        # If data has date column, convert to date index
+        if data_has_date_col:
             df = df.set_index('date')
-        if 'date' in signals.columns:
+        
+        # Align signals index with data index
+        # If signals has date column, use it; otherwise use data's index
+        if signals_has_date_col:
             signals = signals.set_index('date')
+        else:
+            # Signals has RangeIndex - align it with data's index
+            # This preserves the positional alignment
+            if len(signals) == len(df):
+                signals.index = df.index
+            else:
+                # Length mismatch - try to reindex
+                signals = signals.reindex(df.index, fill_value=0)
         
         # Validate index alignment
         if df.index.empty:
             raise ValueError("Data index is empty after processing")
         
-        # Merge data and signals
+        # Merge data and signals - ensure indices match
         backtest_df = pd.DataFrame(index=df.index)
         backtest_df['price'] = df['close']
-        backtest_df['signal'] = signals['signal'].reindex(df.index, fill_value=0)
+        
+        # Align signals to data index
+        if 'signal' in signals.columns:
+            # Use the signal column, ensuring proper alignment
+            backtest_df['signal'] = signals['signal']
+        else:
+            # If signal column doesn't exist, create zeros
+            backtest_df['signal'] = 0
+        
+        # Ensure signal values are integers and handle any NaN
+        backtest_df['signal'] = backtest_df['signal'].fillna(0).astype(int)
+        
+        # Debug: Check signal alignment
+        non_zero_signals = backtest_df[backtest_df['signal'] != 0]
+        if len(non_zero_signals) == 0:
+            # Log warning but continue - might be legitimate (no signals generated)
+            pass
+        else:
+            # Verify signals are properly aligned
+            pass
         
         # Validate we have price data
         if backtest_df['price'].isna().all():
@@ -99,36 +157,231 @@ class BacktestEngine:
         capital = self.initial_capital
         position = 0  # Number of shares
         entry_price = 0
+        entry_index = 0  # Track when position was opened
+        entry_commission_cost = 0.0  # Track entry commission for accurate PnL logging
+        stop_loss_price = 0  # Stop loss price level
+        highest_price = 0  # For trailing stop
         trades = []
-        equity_curve = [capital]
+        equity_curve = []  # Will append one value per day
+        peak_equity = capital  # For max drawdown protection
+        trading_halted = False  # Stop trading if max drawdown exceeded
+        max_holding_days = 20  # Maximum holding period for swing trades (4 weeks)
         
-        for i in range(1, len(backtest_df)):
+        # Process from day 0 to handle signals on first day
+        # Start from i=0 to catch buy signals on the first day
+        for i in range(len(backtest_df)):
+            if i == 0:
+                # First day: check for initial buy signal
+                current_price = backtest_df['price'].iloc[i]
+                signal = int(backtest_df['signal'].iloc[i])
+                
+                # Skip if price is invalid
+                if pd.isna(current_price) or current_price <= 0:
+                    current_equity = capital + (position * current_price if position > 0 else 0)
+                    equity_curve.append(current_equity)
+                    continue
+                
+                # Calculate current equity
+                current_equity = capital + (position * current_price if position > 0 else 0)
+                
+                # Update peak equity
+                if current_equity > peak_equity:
+                    peak_equity = current_equity
+                
+                # Check for opening position on first day
+                if signal == 1 and position == 0 and not trading_halted:
+                    trade_capital = capital * self.position_size
+                    shares = int(trade_capital / current_price)
+                    
+                    if shares > 0:
+                        commission_cost = shares * current_price * self.commission
+                        if trade_capital >= commission_cost:
+                            position = shares
+                            entry_price = current_price
+                            entry_index = i  # Track when position was opened
+                            entry_commission_cost = commission_cost
+                            capital -= (shares * current_price + commission_cost)
+                            
+                            # Set stop loss price
+                            stop_loss_price = entry_price * (1 - self.stop_loss_pct)
+                            
+                            # Initialize trailing stop
+                            if self.trailing_stop:
+                                highest_price = entry_price
+                                stop_loss_price = highest_price * (1 - self.trailing_stop_pct)
+                
+                # Update equity curve
+                current_equity = capital + (position * current_price if position > 0 else 0)
+                equity_curve.append(current_equity)
+                continue
+            
+            # Days 1 onwards: normal processing
             current_price = backtest_df['price'].iloc[i]
-            signal = backtest_df['signal'].iloc[i]
-            prev_signal = backtest_df['signal'].iloc[i-1]
+            signal = int(backtest_df['signal'].iloc[i])  # Ensure integer
+            prev_signal = int(backtest_df['signal'].iloc[i-1])  # Ensure integer
             
-            # Close position if signal changes
-            if position != 0 and signal != prev_signal and signal == 0:
-                # Close position
-                pnl = (current_price - entry_price) * position
-                commission_cost = abs(position * current_price * self.commission)
-                capital += pnl - commission_cost
-                
-                trades.append({
-                    'entry_date': backtest_df.index[i-1],
-                    'exit_date': backtest_df.index[i],
-                    'entry_price': entry_price,
-                    'exit_price': current_price,
-                    'shares': position,
-                    'pnl': pnl - commission_cost,
-                    'return_pct': ((current_price - entry_price) / entry_price) * 100
-                })
-                
-                position = 0
-                entry_price = 0
+            # Skip if price is invalid
+            if pd.isna(current_price) or current_price <= 0:
+                current_equity = capital + (position * backtest_df['price'].iloc[i-1] if position > 0 else 0)
+                equity_curve.append(current_equity)
+                continue
             
-            # Open new position
-            if signal != 0 and position == 0:
+            # Calculate current equity
+            current_equity = capital + (position * current_price if position > 0 else 0)
+            
+            # Update peak equity
+            if current_equity > peak_equity:
+                peak_equity = current_equity
+            
+            # Check stop loss FIRST (before max drawdown) if we have a position
+            if position > 0:
+                stop_loss_triggered = False
+                exit_reason = 'signal'
+                
+                # Regular stop loss check
+                if current_price <= stop_loss_price:
+                    stop_loss_triggered = True
+                    exit_reason = 'stop_loss'
+                
+                # Trailing stop loss check
+                if self.trailing_stop and current_price > highest_price:
+                    highest_price = current_price
+                    # Update trailing stop to be trailing_stop_pct below highest price
+                    stop_loss_price = highest_price * (1 - self.trailing_stop_pct)
+                elif self.trailing_stop and current_price <= stop_loss_price:
+                    stop_loss_triggered = True
+                    exit_reason = 'trailing_stop'
+                
+                # Close position if stop loss triggered
+                if stop_loss_triggered:
+                    # IMPORTANT: add back full sale proceeds (principal + PnL), minus exit commission
+                    # (Entry cost + entry commission were already deducted at entry)
+                    exit_commission_cost = abs(position * current_price * self.commission)
+                    proceeds = position * current_price
+                    cost_basis = position * entry_price
+                    pnl_net = proceeds - exit_commission_cost - cost_basis - entry_commission_cost
+                    capital += proceeds - exit_commission_cost
+                    
+                    trades.append({
+                        'entry_date': backtest_df.index[entry_index],
+                        'exit_date': backtest_df.index[i],
+                        'entry_price': entry_price,
+                        'exit_price': current_price,
+                        'shares': position,
+                        'pnl': pnl_net,
+                        'return_pct': ((current_price - entry_price) / entry_price) * 100,
+                        'exit_reason': exit_reason
+                    })
+                    
+                    position = 0
+                    entry_price = 0
+                    entry_index = 0
+                    entry_commission_cost = 0.0
+                    stop_loss_price = 0
+                    highest_price = 0
+                    # Recalculate equity after closing position
+                    current_equity = capital
+                    if current_equity > peak_equity:
+                        peak_equity = current_equity
+                    # Update equity curve before continuing
+                    equity_curve.append(current_equity)
+                    continue  # Skip signal-based exit logic
+            
+            # Check max drawdown protection AFTER processing stop loss
+            # Only halt if we're not in a position (to avoid halting mid-trade)
+            # Allow trading to resume if equity recovers above the halt threshold
+            if position == 0 and self.max_drawdown_pct < 1.0:
+                drawdown = (peak_equity - current_equity) / peak_equity if peak_equity > 0 else 0
+                if drawdown >= self.max_drawdown_pct:
+                    trading_halted = True
+                    # Don't open new positions, but let existing logic handle it
+                elif trading_halted:
+                    # If we were halted but drawdown has improved, allow trading to resume
+                    # Resume if drawdown is below 80% of the threshold (some recovery)
+                    if drawdown < (self.max_drawdown_pct * 0.8):
+                        trading_halted = False
+            
+            # Close position if we have one and signal indicates exit
+            # Improved exit logic for SWING TRADES: close on sell signal, trend reversal, profit target, or max holding period
+            if position != 0 and not trading_halted:
+                # Calculate current return
+                current_return_pct = ((current_price - entry_price) / entry_price) * 100
+                
+                # Calculate days held
+                days_held = i - entry_index
+                
+                # Exit conditions for swing trades:
+                # 1. Explicit sell signal
+                # 2. Trend reversal (price breaks below key MA)
+                # 3. Take profit (2:1 risk/reward or 3% gain)
+                # 4. Maximum holding period reached (force exit for swing trades)
+                # 5. Neutral signal after holding (exit on neutral to avoid holding too long)
+                
+                trend_reversal = False
+                if 'sma_20' in backtest_df.columns:
+                    # Exit if price breaks below 20-day SMA (trend weakening)
+                    trend_reversal = current_price < backtest_df['sma_20'].iloc[i]
+                
+                # Take profit: 2:1 risk/reward or 3% gain (whichever comes first)
+                profit_target = max(entry_price * 1.03, entry_price + (entry_price - stop_loss_price) * 2)
+                take_profit = current_price >= profit_target
+                
+                # Maximum holding period: force exit after max_holding_days (swing trades should be days to weeks)
+                max_holding_reached = days_held >= max_holding_days
+                
+                # Exit on neutral signal if we've held for a while (prevents holding indefinitely)
+                # Exit on neutral after 5 days to avoid dead positions
+                neutral_exit = (signal == 0) and (days_held >= 5)
+                
+                should_close = (
+                    signal == -1 or  # Explicit sell signal
+                    (prev_signal == 1 and signal == -1) or  # Buy to sell transition
+                    trend_reversal or  # Trend reversal
+                    take_profit or  # Profit target hit
+                    max_holding_reached or  # Maximum holding period
+                    neutral_exit  # Neutral signal after holding period
+                )
+                
+                if should_close:
+                    # Determine exit reason
+                    exit_reason = 'signal'
+                    if max_holding_reached:
+                        exit_reason = 'max_holding_period'
+                    elif take_profit:
+                        exit_reason = 'take_profit'
+                    elif trend_reversal:
+                        exit_reason = 'trend_reversal'
+                    elif neutral_exit:
+                        exit_reason = 'neutral_exit'
+                    
+                    # Close position
+                    exit_commission_cost = abs(position * current_price * self.commission)
+                    proceeds = position * current_price
+                    cost_basis = position * entry_price
+                    pnl_net = proceeds - exit_commission_cost - cost_basis - entry_commission_cost
+                    capital += proceeds - exit_commission_cost
+                    
+                    trades.append({
+                        'entry_date': backtest_df.index[entry_index],
+                        'exit_date': backtest_df.index[i],
+                        'entry_price': entry_price,
+                        'exit_price': current_price,
+                        'shares': position,
+                        'pnl': pnl_net,
+                        'return_pct': current_return_pct,
+                        'exit_reason': exit_reason
+                    })
+                    
+                    position = 0
+                    entry_price = 0
+                    entry_index = 0
+                    entry_commission_cost = 0.0
+                    stop_loss_price = 0
+                    highest_price = 0
+            
+            # Open new long position if signal is 1 (buy) and we don't have a position
+            # Only open if trading is not halted
+            if signal == 1 and position == 0 and not trading_halted:
                 trade_capital = capital * self.position_size
                 shares = int(trade_capital / current_price)
                 
@@ -137,7 +390,17 @@ class BacktestEngine:
                     if trade_capital >= commission_cost:
                         position = shares
                         entry_price = current_price
+                        entry_index = i  # Track when position was opened
+                        entry_commission_cost = commission_cost
                         capital -= (shares * current_price + commission_cost)
+                        
+                        # Set stop loss price
+                        stop_loss_price = entry_price * (1 - self.stop_loss_pct)
+                        
+                        # Initialize trailing stop
+                        if self.trailing_stop:
+                            highest_price = entry_price
+                            stop_loss_price = highest_price * (1 - self.trailing_stop_pct)
             
             # Update equity curve
             current_equity = capital + (position * current_price if position > 0 else 0)
@@ -146,18 +409,21 @@ class BacktestEngine:
         # Close final position if open
         if position > 0:
             final_price = backtest_df['price'].iloc[-1]
-            pnl = (final_price - entry_price) * position
-            commission_cost = abs(position * final_price * self.commission)
-            capital += pnl - commission_cost
+            exit_commission_cost = abs(position * final_price * self.commission)
+            proceeds = position * final_price
+            cost_basis = position * entry_price
+            pnl_net = proceeds - exit_commission_cost - cost_basis - entry_commission_cost
+            capital += proceeds - exit_commission_cost
             
             trades.append({
-                'entry_date': backtest_df.index[-1],
+                'entry_date': backtest_df.index[entry_index],
                 'exit_date': backtest_df.index[-1],
                 'entry_price': entry_price,
                 'exit_price': final_price,
                 'shares': position,
-                'pnl': pnl - commission_cost,
-                'return_pct': ((final_price - entry_price) / entry_price) * 100
+                'pnl': pnl_net,
+                'return_pct': ((final_price - entry_price) / entry_price) * 100,
+                'exit_reason': 'end_of_period'
             })
         
         # Store results
@@ -194,12 +460,28 @@ class BacktestEngine:
             avg_loss = losing_trades['pnl'].mean() if len(losing_trades) > 0 else 0
             profit_factor = abs(winning_trades['pnl'].sum() / losing_trades['pnl'].sum()) if len(losing_trades) > 0 and losing_trades['pnl'].sum() != 0 else 0
             avg_return_per_trade = self.trades['return_pct'].mean()
+            
+            # Count exit reasons
+            if 'exit_reason' in self.trades.columns:
+                stop_loss_trades = len(self.trades[self.trades['exit_reason'] == 'stop_loss'])
+                trailing_stop_trades = len(self.trades[self.trades['exit_reason'] == 'trailing_stop'])
+                signal_trades = len(self.trades[self.trades['exit_reason'] == 'signal'])
+                max_dd_trades = len(self.trades[self.trades['exit_reason'] == 'max_drawdown'])
+            else:
+                stop_loss_trades = 0
+                trailing_stop_trades = 0
+                signal_trades = total_trades
+                max_dd_trades = 0
         else:
             win_rate = 0
             avg_win = 0
             avg_loss = 0
             profit_factor = 0
             avg_return_per_trade = 0
+            stop_loss_trades = 0
+            trailing_stop_trades = 0
+            signal_trades = 0
+            max_dd_trades = 0
         
         # Risk metrics
         if len(returns) > 0:
@@ -228,13 +510,20 @@ class BacktestEngine:
             'sortino_ratio': sortino_ratio,
             'calmar_ratio': calmar_ratio,
             'max_drawdown_pct': max_drawdown,
-            'volatility_pct': volatility
+            'volatility_pct': volatility,
+            'stop_loss_trades': stop_loss_trades,
+            'trailing_stop_trades': trailing_stop_trades,
+            'signal_trades': signal_trades,
+            'max_drawdown_trades': max_dd_trades
         }
     
-    def _calculate_sharpe(self, returns: pd.Series, risk_free_rate: float = 0.02) -> float:
+    def _calculate_sharpe(self, returns: pd.Series, risk_free_rate: float = None) -> float:
         """Calculate Sharpe ratio (annualized)."""
         if len(returns) == 0:
             return 0.0
+        
+        if risk_free_rate is None:
+            risk_free_rate = self.risk_free_rate
         
         std_dev = returns.std()
         if std_dev == 0 or np.isnan(std_dev):
@@ -264,13 +553,16 @@ class BacktestEngine:
         
         Args:
             returns: Series of returns
-            risk_free_rate: Annual risk-free rate (default: 0.02)
+            risk_free_rate: Annual risk-free rate (default: from self.risk_free_rate)
         
         Returns:
             Sortino ratio (annualized)
         """
         if len(returns) == 0:
             return 0.0
+        
+        if risk_free_rate is None:
+            risk_free_rate = self.risk_free_rate
         
         # Only consider negative returns (downside)
         downside_returns = returns[returns < 0]

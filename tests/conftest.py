@@ -164,3 +164,34 @@ def test_config(tmp_path):
     
     return config_file
 
+
+@pytest.fixture
+def sample_intraday_5m_ohlcv():
+    """
+    Deterministic 5-minute OHLCV data for ML/mean-reversion tests.
+    Keeps ML tests fast and avoids repeating fixture logic across files.
+    """
+    dates = pd.date_range(start='2024-01-01 09:30', end='2024-01-05 16:00', freq='5T')
+    np.random.seed(42)
+
+    base_price = 100
+    n = len(dates)
+    returns = np.random.randn(n) * 0.001
+    prices = base_price * np.exp(np.cumsum(returns))
+
+    data = pd.DataFrame({
+        'date': dates,
+        'open': prices + np.random.randn(n) * 0.1,
+        'high': prices + abs(np.random.randn(n)) * 0.3,
+        'low': prices - abs(np.random.randn(n)) * 0.3,
+        'close': prices,
+        'volume': np.random.randint(100000, 500000, n)
+    })
+
+    # Ensure high >= close >= low
+    data['high'] = data[['high', 'close']].max(axis=1)
+    data['low'] = data[['low', 'close']].min(axis=1)
+    data['open'] = data['open'].clip(lower=data['low'], upper=data['high'])
+
+    return data
+

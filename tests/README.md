@@ -1,90 +1,93 @@
-# Testing Guide
+# Test Suite
 
-## Quick Start
+Test suite for the quant strategy framework.
 
-### Run Fast Tests (No Network Required)
-```bash
-# Run all fast tests
-pytest tests/ -m fast
+## Test Organization
 
-# Or use the test runner
-python tests/run_tests.py --fast
-```
+### Core Test Files
 
-### Run All Tests
-```bash
-# Run all tests including network tests
-pytest tests/
+- **`test_backtest_engine_comprehensive.py`** - Backtest engine tests
+  - Initialization and validation
+  - Trade execution
+  - Stop loss and trailing stop
+  - Performance metrics
+  - Export functionality
+  - Edge cases
 
-# Or
-python tests/run_tests.py --all
-```
+- **`test_universe_comprehensive.py`** - Universe constructor tests
+  - Sector classification
+  - Metadata fetching
+  - Filtering methods
+  - Correlation analysis
+  - Universe building
+  - Scoring and ranking
 
-### Run Specific Test File
-```bash
-pytest tests/test_backtest_engine.py -v
-```
-
-## Test Structure
-
-- **Fast Tests** (`-m fast`): Use mock data, no network calls, run in < 1 second
-- **Integration Tests** (`-m integration`): Test full pipeline with mocks
-- **Network Tests**: Require real yfinance API (use sparingly)
-
-## Using Mock Data
-
-The test framework automatically uses mock data by default. To use real data in tests:
-
-```python
-# In your test
-def test_with_real_data():
-    fetcher = DataFetcher(use_mock=False)  # Use real API
-    data = fetcher.fetch_stock_data('AAPL', '2023-01-01', '2024-01-01')
-```
-
-## Test Configuration
-
-Tests use mock data by default for speed. To configure:
-
-1. **Use Mock Data (Default)**: Fast, no network
-   ```python
-   fetcher = DataFetcher(use_mock=True)
-   ```
-
-2. **Use Real Data**: Requires network
-   ```python
-   fetcher = DataFetcher(use_mock=False)
-   ```
-
-3. **Custom Mock Data**: Provide your own data generator
-   ```python
-   def my_mock_data(symbol, start, end):
-       # Return custom DataFrame
-       return pd.DataFrame(...)
-   
-   fetcher = DataFetcher(use_mock=True, mock_data_func=my_mock_data)
-   ```
+- **`test_data_fetcher.py`** - Data fetcher unit tests
+- **`test_indicators.py`** - Strategy indicators unit tests
+- **`test_integration.py`** - End-to-end integration tests
+- **`test_utils.py`** - Utility validation tests
+- **`test_universe_simple.py`** - Quick universe smoke test (no API calls, script-style)
 
 ## Running Tests
 
+### Run All Tests (Recommended)
+
 ```bash
-# Fast tests only (recommended for development)
+# Run all fast tests (default)
+python tests/run_all_tests.py
+
+# Run all tests including slow ones
+python tests/run_all_tests.py --all
+
+# Run with coverage report
+python tests/run_all_tests.py --coverage
+
+# Run only simple universe tests (no API calls)
+python tests/run_all_tests.py --simple
+```
+
+### Run Specific Test Files
+
+```bash
+# Run specific test file
+pytest tests/test_backtest_engine_comprehensive.py -v
+
+# Run specific test class
+pytest tests/test_universe_comprehensive.py::TestSectorClassification -v
+
+# Run specific test
+pytest tests/test_backtest_engine_comprehensive.py::TestPerformanceMetrics::test_sharpe_ratio_calculation -v
+```
+
+### Run with Pytest Directly
+
+```bash
+# Run all fast tests
 pytest tests/ -m fast -v
 
-# All tests
+# Run all tests
 pytest tests/ -v
 
-# Specific test
-pytest tests/test_backtest_engine.py::TestBacktestEngine::test_run_backtest -v
-
-# With coverage
+# Run with coverage
 pytest tests/ --cov=. --cov-report=term-missing
 ```
 
 ## Test Markers
 
-- `@pytest.mark.fast` - Fast test, uses mocks
-- `@pytest.mark.slow` - Slow test, may use network
-- `@pytest.mark.integration` - Integration test
-- `@pytest.mark.network` - Requires network
+Tests are marked with pytest markers for easy filtering:
 
+- `@pytest.mark.fast` - Fast tests using mocks (default)
+- `@pytest.mark.slow` - Slow tests that may take longer
+- `@pytest.mark.network` - Tests requiring network access
+- `@pytest.mark.integration` - Integration tests
+
+## Test Configuration
+
+- **`conftest.py`** - Shared pytest fixtures
+- **`pytest.ini`** - Pytest configuration
+- **`run_all_tests.py`** - Unified test runner
+
+## Notes
+
+- Prefer running `-m fast` locally (no-network / deterministic).
+- Network-dependent tests should be explicitly marked and run intentionally.

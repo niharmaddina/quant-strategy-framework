@@ -3,6 +3,7 @@ Example usage of the quant strategy framework.
 Demonstrates how to use the components programmatically.
 """
 
+import os
 import matplotlib.pyplot as plt
 
 from backtest.engine import BacktestEngine
@@ -13,25 +14,26 @@ from universe.constructor import UniverseConstructor
 
 
 def example_universe_construction():
-    """Example: Building a trading universe."""
+    """Example: Using a frozen/manual trading universe (recommended for backtests)."""
     print("="*60)
     print("EXAMPLE: Universe Construction")
     print("="*60)
-    
-    # Create universe
-    universe = UniverseConstructor()
-    
-    # Get universe info
-    info = universe.get_universe_info()
-    print("\nUniverse Information:")
-    print(info[['symbol', 'sector', 'market_cap', 'avg_volume']].to_string())
-    
-    # Create balanced universe
-    balanced = universe.create_sector_balanced_universe(stocks_per_sector=2)
-    print(f"\nBalanced Universe ({len(balanced)} symbols):")
-    print(balanced)
-    
-    return balanced
+
+    # Load the built-in frozen universe file
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    universe_file = os.path.join(project_root, "universe", "universe_mean_reversion_manual_50.txt")
+    symbols = UniverseConstructor.load_universe(universe_file)
+
+    universe = UniverseConstructor(symbols=symbols)
+    print(f"\nLoaded frozen universe: {len(symbols)} symbols")
+    print(f"First 15: {', '.join(symbols[:15])}")
+
+    # Sector tagging is local (no API calls)
+    print("\nSector tags (sample):")
+    for s in symbols[:12]:
+        print(f"  {s:6s} -> {universe.get_symbol_sector(s) or 'N/A'}")
+
+    return symbols
 
 
 def example_signal_generation():
@@ -40,8 +42,8 @@ def example_signal_generation():
     print("EXAMPLE: Signal Generation")
     print("="*60)
     
-    # Fetch data
-    fetcher = DataFetcher()
+    # Fetch data (mock by default to avoid API rate limits in examples)
+    fetcher = DataFetcher(use_mock=True)
     data = fetcher.fetch_stock_data('AAPL', '2023-01-01', '2024-01-01')
     print(f"\nFetched {len(data)} days of data for AAPL")
     
@@ -72,8 +74,8 @@ def example_backtest():
     print("EXAMPLE: Backtesting")
     print("="*60)
     
-    # Fetch data and generate signals
-    fetcher = DataFetcher()
+    # Fetch data and generate signals (mock by default to avoid API rate limits)
+    fetcher = DataFetcher(use_mock=True)
     data = fetcher.fetch_stock_data('MSFT', '2023-01-01', '2024-01-01')
     
     indicators = SwingTradingIndicators(data)
@@ -106,8 +108,8 @@ def example_visualization():
     print("EXAMPLE: Visualization")
     print("="*60)
     
-    # Run backtest first
-    fetcher = DataFetcher()
+    # Run backtest first (mock by default to avoid API rate limits in examples)
+    fetcher = DataFetcher(use_mock=True)
     data = fetcher.fetch_stock_data('TSLA', '2023-01-01', '2024-01-01')
     
     indicators = SwingTradingIndicators(data)
@@ -127,16 +129,19 @@ def example_visualization():
     
     # Individual plots
     print("\nGenerating plots...")
+    output_dir = "output/examples"
+    os.makedirs(output_dir, exist_ok=True)
+
     fig1 = visualizer.plot_equity_curve()
-    fig1.savefig('example_equity_curve.png', dpi=150, bbox_inches='tight')
+    fig1.savefig(os.path.join(output_dir, 'example_equity_curve.png'), dpi=150, bbox_inches='tight')
     print("  ✓ Saved equity curve")
     
     fig2 = visualizer.plot_trades()
-    fig2.savefig('example_trades.png', dpi=150, bbox_inches='tight')
+    fig2.savefig(os.path.join(output_dir, 'example_trades.png'), dpi=150, bbox_inches='tight')
     print("  ✓ Saved trades chart")
     
     fig3 = visualizer.plot_all()
-    fig3.savefig('example_dashboard.png', dpi=150, bbox_inches='tight')
+    fig3.savefig(os.path.join(output_dir, 'example_dashboard.png'), dpi=150, bbox_inches='tight')
     print("  ✓ Saved dashboard")
     
     plt.close('all')
@@ -149,7 +154,9 @@ def example_options_analysis():
     print("EXAMPLE: Options Chain Analysis")
     print("="*60)
     
-    fetcher = DataFetcher()
+    print("\nNote: options chain fetching requires network access and is rate-limit sensitive.")
+    print("Skipping by default in this example script.\n")
+    return
     
     # Fetch options chain
     options = fetcher.fetch_options_chain('AAPL')
@@ -183,8 +190,8 @@ if __name__ == "__main__":
     # Example 4: Visualization
     example_visualization()
     
-    # Example 5: Options data
-    example_options_analysis()
+    # Example 5: Options data (network-dependent, skipped by default)
+    # example_options_analysis()
     
     print("\n" + "="*60)
     print("All examples completed!")

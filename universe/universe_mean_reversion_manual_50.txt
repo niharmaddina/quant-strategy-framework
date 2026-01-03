@@ -1,0 +1,88 @@
+# Mean-reversion + regime classification universe (MANUAL / FROZEN) — 50 symbols
+# Backtest window target: last 5 years ending today (example): 2021-01-02 → 2026-01-02
+#
+# Philosophy:
+# - Avoid "today-metrics" selection bias by using a fixed list
+# - Prefer highly liquid, long-lived large caps + index/sector ETFs
+# - Sector-balanced (with a couple extra in Tech/Financials due to breadth/liquidity)
+#
+# Usage:
+#   python main.py --universe-file universe/universe_mean_reversion_manual_50.txt --start 2021-01-02 --end 2026-01-02
+
+# --- Broad / index ETFs
+SPY
+QQQ
+DIA
+IWM
+
+# --- Sector ETFs (SPDR)
+XLK
+XLF
+XLV
+XLY
+XLP
+XLE
+XLI
+XLC
+XLRE
+XLB
+XLU
+
+# --- Technology (3 + 1 extra)
+AAPL
+MSFT
+CSCO
+ORCL
+
+# --- Financials (3 + 1 extra)
+JPM
+BAC
+WFC
+GS
+
+# --- Healthcare
+JNJ
+UNH
+PFE
+
+# --- Consumer Discretionary
+AMZN
+HD
+MCD
+
+# --- Consumer Staples
+PG
+KO
+PEP
+
+# --- Energy
+XOM
+CVX
+COP
+
+# --- Industrials
+CAT
+HON
+UPS
+
+# --- Communication Services
+GOOGL
+META
+VZ
+
+# --- Real Estate
+AMT
+PLD
+O
+
+# --- Materials
+LIN
+SHW
+FCX
+
+# --- Utilities
+NEE
+DUK
+SO
+
+

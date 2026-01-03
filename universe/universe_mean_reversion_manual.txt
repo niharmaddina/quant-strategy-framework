@@ -1,0 +1,74 @@
+# Mean-reversion + regime classification starter universe (MANUAL / FROZEN)
+# Goal: avoid "today-metrics" selection bias by using a fixed, sector-balanced list.
+# Notes:
+# - Still not fully survivorship-free (true fix requires point-in-time constituents),
+#   but these are long-lived, very liquid names + ETFs commonly used for backtests.
+#
+# How to use:
+#   python main.py --universe-file universe/universe_mean_reversion_manual.txt --start 2018-01-01 --end 2024-01-01
+
+# --- Broad / index ETFs (often mean-revert cleanly; good regime baselines)
+SPY
+QQQ
+DIA
+IWM
+
+# --- Sector ETFs (diversified, liquid; useful for cross-sector mean-reversion)
+XLK
+XLF
+XLV
+XLY
+XLP
+XLE
+XLI
+XLC
+XLRE
+XLB
+XLU
+
+# --- 2-per-sector long-lived, liquid incumbents (more “mature” / less selection bias)
+# Technology
+IBM
+CSCO
+
+# Financials
+JPM
+BAC
+
+# Healthcare
+JNJ
+PFE
+
+# Consumer Discretionary
+HD
+MCD
+
+# Consumer Staples
+PG
+KO
+
+# Energy
+XOM
+CVX
+
+# Industrials
+GE
+MMM
+
+# Materials
+LIN
+DD
+
+# Real Estate
+AMT
+SPG
+
+# Utilities
+DUK
+SO
+
+# Communication Services
+VZ
+T
+
+

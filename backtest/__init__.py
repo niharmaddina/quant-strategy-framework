@@ -2,7 +2,7 @@
 
 from .engine import BacktestEngine
 
-# Lazy import visualizer to avoid matplotlib dependency for tests
+# Lazy import visualizers to avoid matplotlib dependency for tests
 def __getattr__(name):
     if name == 'BacktestVisualizer':
         try:
@@ -13,7 +13,16 @@ def __getattr__(name):
                 "BacktestVisualizer requires matplotlib. "
                 "Install with: pip install matplotlib"
             )
+    elif name == 'ChartEngine':
+        try:
+            from .chart_engine import ChartEngine
+            return ChartEngine
+        except ImportError:
+            raise ImportError(
+                "ChartEngine requires matplotlib. "
+                "Install with: pip install matplotlib"
+            )
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
-__all__ = ['BacktestEngine', 'BacktestVisualizer']
+__all__ = ['BacktestEngine', 'BacktestVisualizer', 'ChartEngine']
 

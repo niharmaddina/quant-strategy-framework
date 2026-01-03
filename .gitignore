@@ -62,4 +62,15 @@ Thumbs.db
 .coverage
 htmlcov/
 *.cover
+test_*.txt
+test_*.csv
+
+# Generated files
+*.png
+*.jpg
+*.jpeg
+
+# Logs directory
+logs/*.log
+!logs/.gitkeep
 
