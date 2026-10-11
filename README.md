@@ -1,5 +1,9 @@
 # Quant Strategy Framework (Backtesting + Mean Reversion + Universe Tools)
 
+Status (October 2026): the fast test suite passes (147 tests, no network), `main.py` runs end to end
+with the legacy engine on current `yfinance` (1.7), and the VectorBT engine is available behind
+`--engine vectorbt` for anyone with VectorBT installed. Research tooling, not production trading.
+
 This repo is a small research framework for:
 - **Backtesting**: single-asset backtests with basic risk controls + metrics
 - **Signals**: swing-style indicator signals and a dedicated mean-reversion indicator set
@@ -15,10 +19,41 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+### VectorBT engine (optional but recommended)
+
+VectorBT is best installed into a **dedicated virtual environment**, because it pins
+older `numba/numpy` versions that can conflict with stacks like TensorFlow/JAX.
+
+Install into your current venv (simple):
+
+```bash
+pip install -U vectorbt
+```
+
+Optional extras:
+
+```bash
+pip install -U "vectorbt[full]"
+```
+
+Or install a dedicated VectorBT venv for this repo (recommended):
+
+```bash
+python -m venv .venv_vectorbt
+source .venv_vectorbt/bin/activate
+pip install -r requirements-vectorbt.txt
+```
+
 ### Run a backtest (single or multiple symbols)
 
 ```bash
-python main.py --symbols AAPL MSFT --start 2021-01-02 --end 2026-01-02 --no-plot
+python main.py --engine vectorbt --symbols AAPL MSFT --start 2021-01-02 --end 2026-01-02 --no-plot
+```
+
+Force legacy engine:
+
+```bash
+python main.py --engine legacy --symbols AAPL MSFT --start 2021-01-02 --end 2026-01-02 --no-plot
 ```
 
 ### Run using the frozen 50-symbol universe (recommended for backtests)
@@ -54,6 +89,14 @@ Run the fast (no-network) suite:
 
 ```bash
 python tests/run_all_tests.py
+```
+
+## Clear local state
+
+To wipe generated artifacts (plots/logs/cache/pyc) without touching git history:
+
+```bash
+python -m utils.clean_local_state
 ```
 
 ## Notes / limitations

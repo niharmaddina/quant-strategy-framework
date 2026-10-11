@@ -14,6 +14,7 @@ import pandas as pd
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from backtest.engine import BacktestEngine
+from backtest.factory import create_backtest_engine
 from backtest.visualizer import BacktestVisualizer
 from data.fetcher import DataFetcher
 from strategy.indicators import SwingTradingIndicators
@@ -33,7 +34,8 @@ def run_strategy(
     end_date: str,
     initial_capital: float = 100000,
     position_size: float = 0.1,
-    plot: bool = True
+    plot: bool = True,
+    engine_name: str = "vectorbt",
 ):
     """
     Run strategy analysis and backtesting.
@@ -47,7 +49,7 @@ def run_strategy(
         plot: Whether to generate plots
     """
     print(f"\n{'='*60}")
-    print(f"QUANT STRATEGY BACKTEST")
+    print("QUANT STRATEGY BACKTEST")
     print(f"{'='*60}")
     print(f"Symbols: {', '.join(symbols)}")
     print(f"Period: {start_date} to {end_date}")
@@ -99,12 +101,23 @@ def run_strategy(
             
             # Run backtest
             print("  Running backtest...")
-            backtest = BacktestEngine(
-                data=data,
-                signals=signals,
-                initial_capital=initial_capital,
-                position_size=position_size
-            )
+            try:
+                backtest = create_backtest_engine(
+                    engine=engine_name,  # type: ignore[arg-type]
+                    data=data,
+                    signals=signals,
+                    initial_capital=initial_capital,
+                    position_size=position_size,
+                )
+            except ImportError as e:
+                print(f"  ⚠ {e}")
+                print("  Falling back to legacy backtester.")
+                backtest = BacktestEngine(
+                    data=data,
+                    signals=signals,
+                    initial_capital=initial_capital,
+                    position_size=position_size,
+                )
             
             backtest.run()
             metrics = backtest.get_metrics()
@@ -122,7 +135,7 @@ def run_strategy(
             
             # Generate plots
             if plot:
-                print(f"  Generating visualizations...")
+                print("  Generating visualizations...")
                 visualizer = BacktestVisualizer(backtest)
                 
                 # Save individual plots
@@ -157,7 +170,7 @@ def run_strategy(
         avg_sharpe = summary_df['sharpe_ratio'].mean()
         avg_win_rate = summary_df['win_rate_pct'].mean()
         
-        print(f"\nAverage Metrics:")
+        print("\nAverage Metrics:")
         print(f"  Avg Return: {avg_return:.2f}%")
         print(f"  Avg Sharpe: {avg_sharpe:.2f}")
         print(f"  Avg Win Rate: {avg_win_rate:.2f}%")
@@ -193,6 +206,13 @@ def main():
                         help='Initial capital (default: 100000)')
     parser.add_argument('--position-size', type=float, default=0.1,
                         help='Position size as fraction of capital (default: 0.1)')
+    parser.add_argument(
+        '--engine',
+        type=str,
+        default="vectorbt",
+        choices=["vectorbt", "legacy"],
+        help="Backtest engine to use (default: vectorbt; falls back to legacy if vectorbt isn't installed)",
+    )
     parser.add_argument('--no-plot', action='store_true',
                         help='Skip generating plots')
     parser.add_argument('--universe', action='store_true',
@@ -267,7 +287,8 @@ def main():
         end_date=args.end,
         initial_capital=args.capital,
         position_size=args.position_size,
-        plot=not args.no_plot
+        plot=not args.no_plot,
+        engine_name=args.engine,
     )
     
     # Export results if requested

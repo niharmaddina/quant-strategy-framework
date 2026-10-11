@@ -7,6 +7,7 @@ import os
 import matplotlib.pyplot as plt
 
 from backtest.engine import BacktestEngine
+from backtest.factory import create_backtest_engine
 from backtest.visualizer import BacktestVisualizer
 from data.fetcher import DataFetcher
 from strategy.indicators import SwingTradingIndicators
@@ -81,14 +82,25 @@ def example_backtest():
     indicators = SwingTradingIndicators(data)
     signals = indicators.get_signals_df()
     
-    # Run backtest
-    backtest = BacktestEngine(
-        data=data,
-        signals=signals,
-        initial_capital=100000,
-        position_size=0.1,
-        commission=0.001
-    )
+    # Run backtest (prefer VectorBT, fall back to legacy if not installed)
+    try:
+        backtest = create_backtest_engine(
+            engine="vectorbt",
+            data=data,
+            signals=signals,
+            initial_capital=100000,
+            position_size=0.1,
+            commission=0.001,
+        )
+    except ImportError as e:
+        print(f"VectorBT not available in this environment ({e}); using legacy engine.")
+        backtest = BacktestEngine(
+            data=data,
+            signals=signals,
+            initial_capital=100000,
+            position_size=0.1,
+            commission=0.001,
+        )
     
     results = backtest.run()
     backtest.print_metrics()
@@ -96,7 +108,7 @@ def example_backtest():
     # Get trades
     trades = backtest.get_trades()
     if not trades.empty:
-        print(f"\nFirst 5 trades:")
+        print("\nFirst 5 trades:")
         print(trades.head().to_string())
     
     return backtest
@@ -115,12 +127,22 @@ def example_visualization():
     indicators = SwingTradingIndicators(data)
     signals = indicators.get_signals_df()
     
-    backtest = BacktestEngine(
-        data=data,
-        signals=signals,
-        initial_capital=100000,
-        position_size=0.1
-    )
+    try:
+        backtest = create_backtest_engine(
+            engine="vectorbt",
+            data=data,
+            signals=signals,
+            initial_capital=100000,
+            position_size=0.1,
+        )
+    except ImportError as e:
+        print(f"VectorBT not available in this environment ({e}); using legacy engine.")
+        backtest = BacktestEngine(
+            data=data,
+            signals=signals,
+            initial_capital=100000,
+            position_size=0.1,
+        )
     
     backtest.run()
     
@@ -159,14 +181,15 @@ def example_options_analysis():
     return
     
     # Fetch options chain
+    fetcher = DataFetcher()
     options = fetcher.fetch_options_chain('AAPL')
     
     if not options['calls'].empty:
         print(f"\nOptions expiration: {options.get('expiration', 'N/A')}")
-        print(f"\nCalls (first 5):")
+        print("\nCalls (first 5):")
         print(options['calls'][['strike', 'lastPrice', 'volume', 'openInterest']].head().to_string())
         
-        print(f"\nPuts (first 5):")
+        print("\nPuts (first 5):")
         print(options['puts'][['strike', 'lastPrice', 'volume', 'openInterest']].head().to_string())
     else:
         print("No options data available")

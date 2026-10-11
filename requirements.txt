@@ -1,5 +1,5 @@
 backtesting==0.3.3
-yfinance>=1.0.0==0.2.50
+yfinance>=0.2.60
 pandas>=2.0.0
 numpy>=1.26.0
 pyyaml>=6.0.0
