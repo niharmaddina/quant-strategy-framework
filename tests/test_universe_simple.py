@@ -50,7 +50,7 @@ def test_basic_functionality():
     with tempfile.TemporaryDirectory() as tmpdir:
         txt_file = os.path.join(tmpdir, 'test_universe_simple.txt')
         universe.export_universe(txt_file, include_metadata=False)
-        print(f"  ✓ Exported to temp file")
+        print("  ✓ Exported to temp file")
         
         imported = UniverseConstructor.load_universe(txt_file)
     print(f"  ✓ Imported {len(imported)} symbols: {', '.join(imported)}")

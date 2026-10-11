@@ -10,7 +10,6 @@ Demonstrates the new ChartEngine with:
 
 import os
 import sys
-from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
 
@@ -20,7 +19,6 @@ sys.path.insert(0, project_root)
 
 from backtest.engine import BacktestEngine
 from backtest.chart_engine import ChartEngine
-from data.fetcher import DataFetcher
 from strategy.indicators import SwingTradingIndicators
 from strategy.mean_reversion import MeanReversionIndicators
 

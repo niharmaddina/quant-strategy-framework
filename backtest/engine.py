@@ -3,9 +3,7 @@ Backtesting engine for quantitative strategies.
 Provides basic performance metrics.
 """
 
-import json
-from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict
 
 import numpy as np
 import pandas as pd

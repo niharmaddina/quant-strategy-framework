@@ -7,7 +7,6 @@ for realistic training data.
 
 import numpy as np
 import pandas as pd
-from typing import Optional
 
 
 def label_engine_tp_sl_first_long_only(

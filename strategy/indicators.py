@@ -3,7 +3,7 @@ Technical indicators for swing trading strategy.
 Generates signals for manual options trading.
 """
 
-from typing import Dict, Optional
+from typing import Dict
 
 import numpy as np
 import pandas as pd

@@ -8,19 +8,17 @@ If yfinance is unavailable, it provides clear instructions.
 import sys
 from pathlib import Path
 import pandas as pd
-import numpy as np
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from data.fetcher import DataFetcher
 from strategy.mean_reversion import MeanReversionIndicators
-from backtest.engine import BacktestEngine
 from ml.preprocessing import prep_ohlcv
 from ml.labeling import label_engine_tp_sl_first_long_only
 from ml.model import MRSignalQualityModel
 
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 
 def test_yfinance_connection():
@@ -226,7 +224,7 @@ def main():
     recall = recall_score(y_val_actual, y_val_pred, zero_division=0)
     f1 = f1_score(y_val_actual, y_val_pred, zero_division=0)
     
-    print(f"\n   Validation Metrics:")
+    print("\n   Validation Metrics:")
     print(f"   {'='*50}")
     print(f"   Accuracy:  {accuracy:.4f}")
     print(f"   Precision: {precision:.4f}")

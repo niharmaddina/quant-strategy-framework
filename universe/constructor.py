@@ -26,7 +26,6 @@ from typing import Dict, List, Optional, Tuple
 import time
 import warnings
 
-import numpy as np
 import pandas as pd
 import yfinance as yf
 

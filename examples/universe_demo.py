@@ -5,7 +5,6 @@ Shows how to build a sophisticated trading universe.
 
 import os
 import sys
-import pandas as pd
 
 # Add project root to path for imports
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

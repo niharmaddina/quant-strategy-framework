@@ -3,7 +3,6 @@ Visualization utilities for backtest results.
 """
 
 import matplotlib.pyplot as plt
-import pandas as pd
 
 
 class BacktestVisualizer:

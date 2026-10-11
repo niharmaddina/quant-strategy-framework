@@ -42,7 +42,7 @@ class TestMLPreprocessing:
     @pytest.mark.fast
     def test_prep_ohlcv_missing_columns(self):
         df = pd.DataFrame({
-            'date': pd.date_range('2024-01-01', periods=10, freq='5T'),
+            'date': pd.date_range('2024-01-01', periods=10, freq='5min'),
             'open': range(10),
         })
         with pytest.raises(ValueError, match="Missing required columns"):
@@ -51,7 +51,7 @@ class TestMLPreprocessing:
     @pytest.mark.fast
     def test_resample_ohlcv_5m_to_15m(self, sample_intraday_5m_ohlcv):
         df = prep_ohlcv(sample_intraday_5m_ohlcv)
-        result = resample_ohlcv(df, '15T')
+        result = resample_ohlcv(df, '15min')
         assert isinstance(result.index, pd.DatetimeIndex)
         assert len(result) <= len(df)
         for col in ['open', 'high', 'low', 'close', 'volume']:
@@ -63,7 +63,7 @@ class TestMLLabeling:
 
     @pytest.mark.fast
     def test_label_engine_tp_sl_basic(self):
-        dates = pd.date_range(start='2024-01-01 09:30', periods=100, freq='5T')
+        dates = pd.date_range(start='2024-01-01 09:30', periods=100, freq='5min')
         n = len(dates)
         base_price = 100.0
 

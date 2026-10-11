@@ -6,10 +6,7 @@ Tests all functionality, calculations, and edge cases.
 import pytest
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
 import json
-import tempfile
-import os
 
 from backtest.engine import BacktestEngine
 

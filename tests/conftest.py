@@ -5,7 +5,6 @@ Pytest configuration and shared fixtures for fast testing.
 import pytest
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
 from pathlib import Path
 import sys
 
@@ -171,7 +170,7 @@ def sample_intraday_5m_ohlcv():
     Deterministic 5-minute OHLCV data for ML/mean-reversion tests.
     Keeps ML tests fast and avoids repeating fixture logic across files.
     """
-    dates = pd.date_range(start='2024-01-01 09:30', end='2024-01-05 16:00', freq='5T')
+    dates = pd.date_range(start='2024-01-01 09:30', end='2024-01-05 16:00', freq='5min')
     np.random.seed(42)
 
     base_price = 100

@@ -5,7 +5,6 @@ Comprehensive tests for MeanReversionIndicators with granular price data.
 import pytest
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
 
 from strategy.mean_reversion import MeanReversionIndicators
 from data.fetcher import DataFetcher

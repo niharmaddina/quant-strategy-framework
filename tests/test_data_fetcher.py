@@ -4,7 +4,6 @@ Fast unit tests for DataFetcher with mock data support.
 
 import pytest
 import pandas as pd
-from unittest.mock import Mock, patch
 
 from data.fetcher import DataFetcher
 from utils.validation import validate_symbol, validate_date

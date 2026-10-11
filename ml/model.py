@@ -175,7 +175,7 @@ class MRSignalQualityModel:
         # HistGradientBoostingClassifier doesn't have feature_importances_ directly
         # Use permutation importance as fallback
         try:
-            from sklearn.inspection import permutation_importance
+            from sklearn.inspection import permutation_importance  # noqa: F401 (availability check)
             # Need training data to compute permutation importance
             # For now, return equal importance (can be improved with actual training data)
             importances = np.ones(len(self.cols_)) / len(self.cols_)

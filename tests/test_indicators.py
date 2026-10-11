@@ -4,7 +4,6 @@ Fast unit tests for SwingTradingIndicators.
 
 import pytest
 import pandas as pd
-import numpy as np
 
 from strategy.indicators import SwingTradingIndicators
 

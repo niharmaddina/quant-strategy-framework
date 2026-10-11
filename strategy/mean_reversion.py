@@ -3,7 +3,7 @@ Mean reversion strategy indicators optimized for granular intraday data.
 Focuses on identifying overbought/oversold conditions and mean reversion opportunities.
 """
 
-from typing import Dict, Optional, Tuple
+from typing import Dict
 import numpy as np
 import pandas as pd
 

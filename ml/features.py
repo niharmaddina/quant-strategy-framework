@@ -6,7 +6,6 @@ regime/chaos features for ML model training.
 """
 
 import pandas as pd
-import numpy as np
 
 
 def build_mr_quality_features(full_df: pd.DataFrame) -> pd.DataFrame:

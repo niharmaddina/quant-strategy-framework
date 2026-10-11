@@ -4,12 +4,13 @@ Provides comprehensive charts, comparisons, and analysis visualizations.
 """
 
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
 from matplotlib.gridspec import GridSpec
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Optional, Tuple
-from datetime import datetime
+from typing import TYPE_CHECKING, Dict, Optional, Tuple
+
+if TYPE_CHECKING:  # type hints only; a real import would be circular
+    from backtest.engine import BacktestEngine
 
 
 class ChartEngine:
@@ -386,7 +387,7 @@ class ChartEngine:
             try:
                 returns.index = pd.to_datetime(returns.index)
                 monthly = returns.resample('M').apply(lambda x: (1 + x).prod() - 1) * 100
-            except:
+            except Exception:
                 ax.text(0.5, 0.5, 'Cannot calculate monthly returns', ha='center', va='center')
                 return
         

@@ -4,9 +4,7 @@ Tests the full pipeline without network calls.
 """
 
 import pytest
-import pandas as pd
 
-from data.fetcher import DataFetcher
 from strategy.indicators import SwingTradingIndicators
 from backtest.engine import BacktestEngine
 

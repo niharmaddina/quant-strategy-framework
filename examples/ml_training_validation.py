@@ -7,7 +7,6 @@ Trains the ML signal quality model and validates its performance.
 import sys
 from pathlib import Path
 import pandas as pd
-import numpy as np
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -19,7 +18,6 @@ from ml.preprocessing import prep_ohlcv
 from ml.labeling import label_engine_tp_sl_first_long_only
 from ml.model import MRSignalQualityModel
 
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report
 
 
@@ -39,7 +37,6 @@ def main():
     
     # Fetch real market data
     print("   Fetching real market data from yfinance...")
-    from datetime import datetime, timedelta
     
     # Try multiple date ranges and intervals
     # yfinance intraday data can be unreliable, so we'll try multiple options
@@ -216,7 +213,7 @@ def main():
     recall = recall_score(y_val_actual, y_val_pred, zero_division=0)
     f1 = f1_score(y_val_actual, y_val_pred, zero_division=0)
     
-    print(f"\n   Validation Metrics:")
+    print("\n   Validation Metrics:")
     print(f"   {'='*50}")
     print(f"   Accuracy:  {accuracy:.4f}")
     print(f"   Precision: {precision:.4f}")
@@ -286,7 +283,7 @@ def main():
     print("\n" + "=" * 70)
     print("Training and Validation Complete!")
     print("=" * 70)
-    print(f"\nModel Performance Summary:")
+    print("\nModel Performance Summary:")
     print(f"  - Training samples: {len(X_train)}")
     print(f"  - Validation samples: {len(X_val)}")
     print(f"  - Validation Accuracy: {accuracy:.2%}")

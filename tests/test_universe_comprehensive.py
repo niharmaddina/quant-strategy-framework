@@ -6,13 +6,9 @@ Tests all functionality with mocking to avoid API rate limits.
 import pytest
 import pandas as pd
 import numpy as np
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime, timedelta
-import tempfile
-import os
-from pathlib import Path
+from unittest.mock import Mock, patch
 
-from universe.constructor import UniverseConstructor, SECTOR_MAPPING, SECTOR_ETFS
+from universe.constructor import UniverseConstructor, SECTOR_MAPPING
 
 
 class TestUniverseConstructorInitialization:

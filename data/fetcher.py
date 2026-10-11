@@ -4,7 +4,7 @@ Uses yfinance for free market data.
 Supports both real API calls and mock data for testing.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 import time
 

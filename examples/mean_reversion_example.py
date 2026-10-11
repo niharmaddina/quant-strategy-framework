@@ -8,7 +8,6 @@ intraday data (1h, 15m, 5m intervals) for mean reversion trading.
 import os
 import sys
 from datetime import datetime, timedelta
-import pandas as pd
 
 # Add project root to path
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -87,7 +86,7 @@ def example_mean_reversion_intraday():
             min_confidence=0.5
         )
         
-        print(f"Mean Reversion Opportunities (min strength: 5.0, min confidence: 0.5):")
+        print("Mean Reversion Opportunities (min strength: 5.0, min confidence: 0.5):")
         print(f"  Found {len(opportunities)} opportunities")
         print()
         

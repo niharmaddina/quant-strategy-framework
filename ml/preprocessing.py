@@ -66,27 +66,27 @@ def resample_ohlcv(
     
     Args:
         df: DataFrame with datetime index and OHLCV columns
-        target_interval: Target interval (e.g., '5T', '15T', '1H', '1D')
+        target_interval: Target interval (e.g., '5min', '15min', '1H', '1D')
         source_interval: Optional source interval for validation
         
     Returns:
         Resampled DataFrame
         
     Examples:
-        >>> df_5m = resample_ohlcv(df_1m, '5T')  # 1m to 5m
-        >>> df_15m = resample_ohlcv(df_5m, '15T')  # 5m to 15m
+        >>> df_5m = resample_ohlcv(df_1m, '5min')  # 1m to 5m
+        >>> df_15m = resample_ohlcv(df_5m, '15min')  # 5m to 15m
     """
     if not isinstance(df.index, pd.DatetimeIndex):
         raise ValueError("DataFrame must have datetime index")
     
     # Map common interval strings to pandas frequency
     interval_map = {
-        '1m': '1T',
-        '2m': '2T',
-        '5m': '5T',
-        '15m': '15T',
-        '30m': '30T',
-        '60m': '60T',
+        '1m': '1min',
+        '2m': '2min',
+        '5m': '5min',
+        '15m': '15min',
+        '30m': '30min',
+        '60m': '60min',
         '1h': '1H',
         '1d': '1D',
     }

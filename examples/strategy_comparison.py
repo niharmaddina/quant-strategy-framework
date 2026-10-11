@@ -67,10 +67,10 @@ def run_strategy_comparison(
         except Exception as e:
             if attempt < max_retries - 1:
                 print(f"⚠ Attempt {attempt + 1} failed: {e}")
-                print(f"  Retrying in 2 seconds...")
+                print("  Retrying in 2 seconds...")
                 time.sleep(2)
             else:
-                print(f"⚠ DataFetcher failed. Trying direct yfinance...")
+                print("⚠ DataFetcher failed. Trying direct yfinance...")
     
     # Method 2: Try direct yfinance with period parameter (more reliable)
     if data is None or data.empty or len(data) < 50:
@@ -86,7 +86,7 @@ def run_strategy_comparison(
                 data_direct = ticker.history(start=start_date, end=end_date)
                 if data_direct.empty:
                     raise ValueError("Empty result")
-            except:
+            except Exception:
                 pass
             
             # Approach 2: Try with period="max" and filter
@@ -101,7 +101,7 @@ def run_strategy_comparison(
                         if end_date:
                             end_dt_plus = pd.to_datetime(end_date) + pd.Timedelta(days=1)
                             data_direct = data_direct[data_direct.index < end_dt_plus]
-                except:
+                except Exception:
                     pass
             
             # Approach 3: Try 5y period
@@ -115,7 +115,7 @@ def run_strategy_comparison(
                         if end_date:
                             end_dt_plus = pd.to_datetime(end_date) + pd.Timedelta(days=1)
                             data_direct = data_direct[data_direct.index < end_dt_plus]
-                except:
+                except Exception:
                     pass
             
             if data_direct is not None and not data_direct.empty:
@@ -216,14 +216,14 @@ def run_strategy_comparison(
     strategy_metrics = backtest.get_metrics()
     
     # Debug: Check why trades might not be executing
-    print(f"\n  Backtest Results:")
+    print("\n  Backtest Results:")
     print(f"    Total trades executed: {strategy_metrics['total_trades']}")
     print(f"    Final capital: ${strategy_metrics['final_capital']:,.2f}")
     
     # Analyze trade quality
     trades = backtest.get_trades()
     if len(trades) > 0:
-        print(f"\n  Trade Quality Analysis:")
+        print("\n  Trade Quality Analysis:")
         wins = trades[trades['pnl'] > 0]
         losses = trades[trades['pnl'] <= 0]
         if len(wins) > 0 and len(losses) > 0:
@@ -234,7 +234,7 @@ def run_strategy_comparison(
             print(f"    Average loss: \${avg_loss:,.2f}")
             print(f"    Win/Loss ratio: {win_loss_ratio:.2f}")
             if win_loss_ratio < 1.5:
-                print(f"    ⚠ WARNING: Losses are larger than wins - strategy needs improvement!")
+                print("    ⚠ WARNING: Losses are larger than wins - strategy needs improvement!")
         
         # Check for large losses
         large_losses = trades[trades['pnl'] < -500]
@@ -243,8 +243,8 @@ def run_strategy_comparison(
             print(f"    Largest loss: \${trades['pnl'].min():,.2f}")
     
     if strategy_metrics['total_trades'] == 0:
-        print(f"\n  ⚠ WARNING: No trades executed!")
-        print(f"    Checking signal alignment...")
+        print("\n  ⚠ WARNING: No trades executed!")
+        print("    Checking signal alignment...")
         
         # Check if signals are being passed correctly
         if hasattr(backtest, 'results') and 'signal' in backtest.results.columns:
@@ -252,14 +252,14 @@ def run_strategy_comparison(
             non_zero_in_results = signal_in_results[signal_in_results != 0]
             print(f"    Non-zero signals in backtest results: {len(non_zero_in_results)}")
             if len(non_zero_in_results) > 0:
-                print(f"    First few non-zero signals:")
+                print("    First few non-zero signals:")
                 print(f"      {non_zero_in_results.head(5)}")
         
         # Check original signals
         non_zero_original = signals[signals['signal'] != 0]
         print(f"    Non-zero signals in original signals: {len(non_zero_original)}")
         if len(non_zero_original) > 0:
-            print(f"    First few non-zero original signals:")
+            print("    First few non-zero original signals:")
             print(f"      {non_zero_original[['signal', 'bullish_strength', 'bearish_strength']].head(5)}")
     
     # Calculate buy-and-hold S&P 500 returns
@@ -465,7 +465,7 @@ def run_strategy_comparison(
     plt.tight_layout(rect=[0, 0, 1, 0.98])
     
     # Save chart
-    output_file = f'strategy_vs_buyhold_comparison.png'
+    output_file = 'strategy_vs_buyhold_comparison.png'
     plt.savefig(output_file, dpi=150, bbox_inches='tight', facecolor='white')
     print(f"✓ Saved chart to {output_file}")
     
@@ -496,7 +496,7 @@ if __name__ == "__main__":
     else:
         end_date = (today - timedelta(days=1)).strftime('%Y-%m-%d')  # Yesterday to avoid incomplete data
     
-    print(f"Testing strategy from 2021 to 2026")
+    print("Testing strategy from 2021 to 2026")
     print(f"Date range: {start_date} to {end_date}")
     print("="*70)
     
