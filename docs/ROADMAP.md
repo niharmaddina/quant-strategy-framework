@@ -18,6 +18,14 @@ except for the short "Done" list below, kept so the remaining items have context
   engine's class docstring. `max_holding_days` is a constructor argument (default 20, as before) and
   `SwingTradingIndicators` takes `rsi_oversold`, `rsi_overbought`, `bb_period`, `bb_std_dev` keywords
   with the shipped values as defaults. The frozen-universe CSV and summary carry the new columns.
+- Walk-forward evaluation: `examples/walk_forward.py` splits the frozen-universe window into
+  2021-2022 (in-sample) and 2023-2024 (out-of-sample), probes every exposed parameter one at a time,
+  runs an 18-configuration grid in-sample, selects by a rule fixed in the script, and reports the
+  selected configuration next to the default and buy-and-hold out-of-sample. Writes
+  `results/walk_forward.csv`, `results/walk_forward_grid.csv`, `results/walk_forward.md` and
+  `results/figures/fig5_walk_forward.png`; summarised in the README "Walk-forward evaluation"
+  subsection. Result: the in-sample choice did not transfer (last of 18 out-of-sample; in-sample vs
+  out-of-sample rank correlation -0.64).
 
 ## Data / reliability
 
@@ -34,8 +42,12 @@ except for the short "Done" list below, kept so the remaining items have context
 
 ## Evaluation protocol
 
-- Add a held-out window or walk-forward split to the worked example; the committed results are
-  in-sample only
+- Extend the single split in `examples/walk_forward.py` to a rolling (anchored or sliding) walk-forward
+  with several re-selection points, so the transfer conclusion does not rest on one cut
+- Expose the exits that the probe showed actually govern trade length (the 5-bar neutral-signal exit and
+  the take-profit rule) so they can be part of the grid instead of fixed engine behaviour
+- Add a simple significance check (for example a bootstrap over symbols or a permutation of the signal
+  dates) so differences of hundredths of a percent are reported with an uncertainty
 
 ## Universe tooling
 

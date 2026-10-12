@@ -9,6 +9,7 @@ Keep docs short, current, and aligned with the codebase.
 - `docs/CHART_ENGINE_GUIDE.md`: Chart engine usage
 - `universe/UNIVERSE_GUIDE.md`: Universe construction + frozen universe guidance
 - `docs/ROADMAP.md`: Short list of remaining improvements (kept current)
+- `results/summary.md` and `results/walk_forward.md`: committed outputs of the frozen-universe worked example and its walk-forward evaluation (see README "Results")
 
 ## Notes
 

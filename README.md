@@ -4,7 +4,7 @@ Backtesting, mean-reversion signals and frozen-universe tooling for swing-tradin
 Python. Built by Nihar Maddina and Tushar Gona (2025-2026); this is the maintained public home,
 the original development repository was `tgona/oni_strat_m1`.
 
-Status (October 2026): the fast test suite passes (147 tests, no network) and runs in CI on Python 3.11
+Status (October 2026): the fast test suite passes (172 tests, no network) and runs in CI on Python 3.11
 and 3.12 together with `ruff`; `main.py` runs end to end with the legacy engine on current `yfinance`
 (1.7); the VectorBT engine is available behind `--engine vectorbt` for anyone with VectorBT installed.
 A reproducible frozen-universe run with committed results is in the "Results" section below. Research
@@ -177,12 +177,67 @@ What the numbers do not show:
   Prices are Yahoo `Close`, split-adjusted but not dividend-adjusted, so buy-and-hold excludes dividends.
 - A survivorship-free universe. The list is hand-picked large, long-lived names and ETFs written after
   the test window; it is not a point-in-time constituent list.
-- Out-of-sample performance. This is a single in-sample run with the default parameters, no held-out
-  period, no walk-forward, and no statistical test. It is a baseline for future changes, not evidence of
-  an edge.
+- Out-of-sample performance of this run: it is a single pass over the whole window with the default
+  parameters and no statistical test. The walk-forward subsection below adds one in-sample /
+  out-of-sample split; it does not add a test of significance. Neither is evidence of an edge.
 
 Re-running the command without `data_cache/` downloads from Yahoo again; revised data could change the
 bars slightly. With the cache present the run is offline and reproduces the CSV exactly.
+
+### Walk-forward evaluation
+
+Same universe, data and engine, split into an in-sample period (2021-01-04 to 2022-12-31, 503 bars per
+symbol) and an out-of-sample period (2023-01-03 to 2024-12-31, 502 bars). Run on 2026-10-12
+(05:01 UTC), offline from the cache, by:
+
+```bash
+python examples/walk_forward.py
+# equivalent to:
+# python examples/walk_forward.py --universe-file universe/universe_mean_reversion_manual_50.txt \
+#     --capital 100000 --position-size 0.1
+```
+
+Protocol, fixed in the script before any out-of-sample number was computed:
+
+- A one-at-a-time sensitivity probe over every exposed parameter, in-sample only. It showed that the
+  Bollinger period and width and the RSI overbought threshold do not change a single in-sample number
+  (the strategy multiplies those flags by trend, momentum and price-action filters that never coincide
+  with them), so the grid uses the three parameters that do: `rsi_oversold` in {35, 45, 55},
+  `max_holding_days` in {5, 10, 20}, `stop_loss_pct` in {3%, 5%}, 18 configurations including the
+  default (35, 20, 5%).
+- Selection rule: highest mean per-symbol in-sample total return among configurations with at least 100
+  pooled in-sample trades (2 per symbol on average; the default has 129), ties broken by higher median.
+- Indicators are computed on the full series and cut to each period, so the out-of-sample period starts
+  with warmed-up moving averages; every indicator is backward-looking, so this cannot leak future data
+  into the in-sample period (checked by `tests/test_walk_forward.py`). Each period is a fresh 100,000
+  account per symbol.
+
+The selection picked `rsi<35, hold 10, stop 5%`: in-sample mean -0.069% against the default's -0.088%
+(138 vs 129 trades). Out-of-sample, across the 50 symbols:
+
+| configuration (out-of-sample, 2023-01-03 to 2024-12-31) | mean return (%) | median return (%) | symbols positive | symbols beating buy-and-hold | trades | exposure (% of bars) | in-market Sharpe (mean) | max drawdown (%, mean) |
+|---|---|---|---|---|---|---|---|---|
+| default: rsi<35, hold 20, stop 5% | -0.098 | -0.151 | 21 of 50 | 12 of 50 | 337 | 9.13 | -1.04 | 0.79 |
+| selected in-sample: rsi<35, hold 10, stop 5% | -0.100 | -0.171 | 20 of 50 | 12 of 50 | 374 | 9.40 | -1.14 | 0.81 |
+| buy-and-hold | +35.04 | +12.55 | 37 of 50 | | | 100 | 0.51 (Sharpe) | 21.14 |
+
+![In-sample grid heatmap, in-sample vs out-of-sample scatter for all 18 configurations, and out-of-sample bars for default, selected and buy-and-hold](results/figures/fig5_walk_forward.png)
+
+Figure 5. Left: mean in-sample return of the 18 configurations (darker is higher; all are negative),
+default and selected cells outlined. Middle: each configuration's in-sample mean against its
+out-of-sample mean; the Spearman rank correlation across the 18 is -0.64, and the three worst in-sample
+rows (`rsi<55`) are the six best out-of-sample. Right: out-of-sample mean and median per-symbol return
+for the default, the selected configuration and buy-and-hold.
+
+What it shows: selection on the in-sample period does not transfer. The configuration chosen in-sample
+finished last of the 18 out-of-sample (-0.100% vs -0.098% for the default, which ranked 16th), was
+better than the default on 9 of 50 symbols, and the in-sample ranking of the grid is inversely related
+to the out-of-sample ranking. Tuning the thresholds the code exposes moves the mean return by hundredths
+of a percent in either direction and leaves the picture from the main run unchanged: the strategy is in
+a position about 9% of the time and finishes near zero while buy-and-hold in the same symbols returns
+tens of percent. The full grid, the probe table, per-symbol out-of-sample rows and the caveats (one
+split, 18 configurations, small differences that are partly noise, fixed exit rules not tuned, survivor
+universe) are in `results/walk_forward.md`, `results/walk_forward.csv` and `results/walk_forward_grid.csv`.
 
 ## Strategy modules
 
@@ -198,6 +253,7 @@ bars slightly. With the cache present the run is offline and reproduces the CSV 
 - `docs/ROADMAP.md` (what is done, what is left)
 - `universe/UNIVERSE_GUIDE.md`
 - `results/summary.md` (latest frozen-universe run)
+- `results/walk_forward.md` (walk-forward evaluation: probe, grid, selection, out-of-sample)
 - `REPOSITORY_STRUCTURE.md`
 
 ## Tests and lint
