@@ -15,13 +15,39 @@ class SwingTradingIndicators:
     Generates signals that traders can use to make manual options decisions.
     """
     
-    def __init__(self, data: pd.DataFrame):
+    def __init__(
+        self,
+        data: pd.DataFrame,
+        rsi_oversold: float = 35.0,
+        rsi_overbought: float = 65.0,
+        bb_period: int = 20,
+        bb_std_dev: float = 2.0,
+    ):
         """
         Initialize with price data.
-        
+
+        The defaults reproduce the shipped rule set exactly; the keyword arguments exist
+        so that evaluation scripts (examples/walk_forward.py) can vary the thresholds
+        that drive the pullback entries without editing this file.
+
         Args:
             data: DataFrame with columns: date, open, high, low, close, volume
+            rsi_oversold: RSI level below which the "RSI pullback" entry flag is set (default 35)
+            rsi_overbought: RSI level above which the "RSI overbought" exit flag is set (default 65)
+            bb_period: Bollinger Band lookback in bars (default 20)
+            bb_std_dev: Bollinger Band width in standard deviations (default 2.0)
         """
+        if not 0 < rsi_oversold < rsi_overbought < 100:
+            raise ValueError(f"Need 0 < rsi_oversold < rsi_overbought < 100, got {rsi_oversold}, {rsi_overbought}")
+        if int(bb_period) < 2 or int(bb_period) != bb_period:
+            raise ValueError(f"bb_period must be an integer >= 2, got {bb_period}")
+        if bb_std_dev <= 0:
+            raise ValueError(f"bb_std_dev must be positive, got {bb_std_dev}")
+        self.rsi_oversold = float(rsi_oversold)
+        self.rsi_overbought = float(rsi_overbought)
+        self.bb_period = int(bb_period)
+        self.bb_std_dev = float(bb_std_dev)
+
         # Validate required columns
         required_columns = ['open', 'high', 'low', 'close']
         missing_columns = [col for col in required_columns if col not in data.columns]
@@ -43,7 +69,7 @@ class SwingTradingIndicators:
         self._calculate_moving_averages(df)
         self._calculate_rsi(df)
         self._calculate_macd(df)
-        self._calculate_bollinger_bands(df)
+        self._calculate_bollinger_bands(df, period=self.bb_period, std_dev=self.bb_std_dev)
         self._calculate_stochastic(df)
         self._calculate_atr(df)
         self._calculate_market_regime(df)
@@ -208,8 +234,8 @@ class SwingTradingIndicators:
         # ========================================================================
         # Signal 1: RSI - Use for pullback entries in uptrends
         # Buy when RSI is oversold BUT in an uptrend (pullback buy)
-        signals['rsi_oversold'] = (df['rsi'] < 35).astype(int)  # Slightly less strict
-        signals['rsi_overbought'] = (df['rsi'] > 65).astype(int)  # Slightly less strict
+        signals['rsi_oversold'] = (df['rsi'] < self.rsi_oversold).astype(int)  # default 35, slightly less strict
+        signals['rsi_overbought'] = (df['rsi'] > self.rsi_overbought).astype(int)  # default 65
         
         # Signal 2: MACD - Momentum confirmation
         signals['macd_bullish'] = (

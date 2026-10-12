@@ -11,6 +11,13 @@ except for the short "Done" list below, kept so the remaining items have context
   frozen 50-symbol universe for 2021-01-04 to 2024-12-31, with a per-symbol buy-and-hold baseline, and
   writes `results/frozen50_2021_2024.csv` and `results/summary.md` (reported in the README "Results"
   section). Downloaded OHLCV is cached per symbol as CSV under `data_cache/` so re-runs are offline.
+- Risk metrics for a mostly-idle account: `BacktestEngine` now reports `exposure_pct`,
+  `avg_holding_days`, `in_market_days`, `in_market_sharpe_ratio` and `in_market_sortino_ratio` next to
+  the unchanged account-level ratios. The in-market ratios use the return on capital at risk over the
+  bars a position was held and are NaN (not 0) when undefined; the rule and its reasoning are in the
+  engine's class docstring. `max_holding_days` is a constructor argument (default 20, as before) and
+  `SwingTradingIndicators` takes `rsi_oversold`, `rsi_overbought`, `bb_period`, `bb_std_dev` keywords
+  with the shipped values as defaults. The frozen-universe CSV and summary carry the new columns.
 
 ## Data / reliability
 
@@ -22,10 +29,8 @@ except for the short "Done" list below, kept so the remaining items have context
 
 - Add optional slippage model (e.g., bps + spread)
 - Add explicit "mark-to-market" and multi-position portfolio support (currently single-position per symbol)
-- Report risk metrics that make sense for a mostly-idle account: the engine's Sharpe subtracts a 2%
-  risk-free rate from near-zero account returns, which produces large negative values for a strategy
-  that is rarely invested (see `results/summary.md`); an exposure-adjusted or invested-period variant
-  would be more informative
+- Let idle cash earn the risk-free rate (or a configurable rate) so that the account-level Sharpe of a
+  rarely invested account is not dominated by the -2% excess return of uninvested capital
 
 ## Evaluation protocol
 

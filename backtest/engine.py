@@ -13,8 +13,25 @@ class BacktestEngine:
     """
     Simple backtesting engine for strategy evaluation.
     Assumes signals are generated and we follow them with fixed position sizes.
+
+    Risk metrics come in two families, because a single-position account that is
+    in cash most of the time makes the usual account-level ratios misleading:
+
+    * ``sharpe_ratio``, ``sortino_ratio``, ``volatility_pct``, ``max_drawdown_pct``
+      are computed on the daily returns of total account equity over every bar.
+      Cash earns nothing in this engine, so an account that is rarely invested has
+      near-zero mean return and near-zero volatility; subtracting the risk-free rate
+      then gives a large negative Sharpe (roughly -rf / tiny volatility). That value
+      is finite and correctly says "T-bills would have done better", but it says
+      nothing about the trades themselves.
+    * ``in_market_sharpe_ratio`` and ``in_market_sortino_ratio`` are computed only
+      on the days a position was held, from the return on the capital at risk (see
+      ``_in_market_returns``). They describe the quality of the trades independently
+      of how often and how large they were; ``exposure_pct``, ``avg_holding_days``
+      and ``in_market_days`` report that separately. They are NaN, not 0, when
+      undefined (fewer than two in-market days, or zero variance).
     """
-    
+
     def __init__(
         self,
         data: pd.DataFrame,
@@ -26,11 +43,12 @@ class BacktestEngine:
         trailing_stop: bool = False,  # Use trailing stop loss
         trailing_stop_pct: float = 0.03,  # 3% trailing stop
         max_drawdown_pct: float = 0.20,  # 20% max portfolio drawdown before stopping
-        risk_free_rate: float = 0.02  # 2% annual risk-free rate
+        risk_free_rate: float = 0.02,  # 2% annual risk-free rate
+        max_holding_days: int = 20,  # Force exit after this many bars in a trade
     ):
         """
         Initialize backtest engine with risk management features.
-        
+
         Args:
             data: Price data with 'close' column
             signals: DataFrame with 'signal' column (1=buy, -1=sell, 0=hold)
@@ -42,7 +60,9 @@ class BacktestEngine:
             trailing_stop_pct: Trailing stop percentage (0.03 = 3% trailing stop)
             max_drawdown_pct: Max portfolio drawdown before halting (0.20 = 20%)
             risk_free_rate: Annual risk-free rate for Sharpe/Sortino (0.02 = 2%)
-        
+            max_holding_days: Maximum number of bars a position may be held before it
+                is closed at that bar's close (default 20, the swing-trade horizon)
+
         Raises:
             ValueError: If data is invalid or missing required columns
         """
@@ -68,7 +88,9 @@ class BacktestEngine:
         if not 0 < max_drawdown_pct <= 1:
             raise ValueError(f"Max drawdown must be between 0 and 1, got {max_drawdown_pct}")
         # Allow 1.0 to effectively disable max drawdown protection
-        
+        if int(max_holding_days) < 1 or int(max_holding_days) != max_holding_days:
+            raise ValueError(f"max_holding_days must be a positive integer, got {max_holding_days}")
+
         self.data = data.copy()
         self.signals = signals.copy()
         self.initial_capital = initial_capital
@@ -79,7 +101,8 @@ class BacktestEngine:
         self.trailing_stop_pct = trailing_stop_pct
         self.max_drawdown_pct = max_drawdown_pct
         self.risk_free_rate = risk_free_rate
-        
+        self.max_holding_days = int(max_holding_days)
+
         self.results = None
         self.metrics = {}
         self.trades = pd.DataFrame()
@@ -161,10 +184,11 @@ class BacktestEngine:
         highest_price = 0  # For trailing stop
         trades = []
         equity_curve = []  # Will append one value per day
+        position_curve = []  # Shares held at the close of each day (0 when flat)
         peak_equity = capital  # For max drawdown protection
         trading_halted = False  # Stop trading if max drawdown exceeded
-        max_holding_days = 20  # Maximum holding period for swing trades (4 weeks)
-        
+        max_holding_days = self.max_holding_days  # Maximum holding period for swing trades
+
         # Process from day 0 to handle signals on first day
         # Start from i=0 to catch buy signals on the first day
         for i in range(len(backtest_df)):
@@ -172,11 +196,12 @@ class BacktestEngine:
                 # First day: check for initial buy signal
                 current_price = backtest_df['price'].iloc[i]
                 signal = int(backtest_df['signal'].iloc[i])
-                
+
                 # Skip if price is invalid
                 if pd.isna(current_price) or current_price <= 0:
                     current_equity = capital + (position * current_price if position > 0 else 0)
                     equity_curve.append(current_equity)
+                    position_curve.append(position)
                     continue
                 
                 # Calculate current equity
@@ -211,17 +236,19 @@ class BacktestEngine:
                 # Update equity curve
                 current_equity = capital + (position * current_price if position > 0 else 0)
                 equity_curve.append(current_equity)
+                position_curve.append(position)
                 continue
-            
+
             # Days 1 onwards: normal processing
             current_price = backtest_df['price'].iloc[i]
             signal = int(backtest_df['signal'].iloc[i])  # Ensure integer
             prev_signal = int(backtest_df['signal'].iloc[i-1])  # Ensure integer
-            
+
             # Skip if price is invalid
             if pd.isna(current_price) or current_price <= 0:
                 current_equity = capital + (position * backtest_df['price'].iloc[i-1] if position > 0 else 0)
                 equity_curve.append(current_equity)
+                position_curve.append(position)
                 continue
             
             # Calculate current equity
@@ -268,9 +295,10 @@ class BacktestEngine:
                         'shares': position,
                         'pnl': pnl_net,
                         'return_pct': ((current_price - entry_price) / entry_price) * 100,
+                        'bars_held': i - entry_index,
                         'exit_reason': exit_reason
                     })
-                    
+
                     position = 0
                     entry_price = 0
                     entry_index = 0
@@ -283,6 +311,7 @@ class BacktestEngine:
                         peak_equity = current_equity
                     # Update equity curve before continuing
                     equity_curve.append(current_equity)
+                    position_curve.append(position)
                     continue  # Skip signal-based exit logic
             
             # Check max drawdown protection AFTER processing stop loss
@@ -368,6 +397,7 @@ class BacktestEngine:
                         'shares': position,
                         'pnl': pnl_net,
                         'return_pct': current_return_pct,
+                        'bars_held': days_held,
                         'exit_reason': exit_reason
                     })
                     
@@ -404,7 +434,8 @@ class BacktestEngine:
             # Update equity curve
             current_equity = capital + (position * current_price if position > 0 else 0)
             equity_curve.append(current_equity)
-        
+            position_curve.append(position)
+
         # Close final position if open
         if position > 0:
             final_price = backtest_df['price'].iloc[-1]
@@ -413,7 +444,7 @@ class BacktestEngine:
             cost_basis = position * entry_price
             pnl_net = proceeds - exit_commission_cost - cost_basis - entry_commission_cost
             capital += proceeds - exit_commission_cost
-            
+
             trades.append({
                 'entry_date': backtest_df.index[entry_index],
                 'exit_date': backtest_df.index[-1],
@@ -422,14 +453,18 @@ class BacktestEngine:
                 'shares': position,
                 'pnl': pnl_net,
                 'return_pct': ((final_price - entry_price) / entry_price) * 100,
+                'bars_held': len(backtest_df) - 1 - entry_index,
                 'exit_reason': 'end_of_period'
             })
-        
+
         # Store results
         backtest_df['equity'] = equity_curve
+        backtest_df['position'] = position_curve
         backtest_df['returns'] = backtest_df['equity'].pct_change()
         backtest_df['cumulative_returns'] = (1 + backtest_df['returns']).cumprod() - 1
-        
+        # A day's close-to-close return was earned with a position open iff shares were held at the previous close.
+        backtest_df['in_market'] = backtest_df['position'].shift(1).fillna(0) > 0
+
         self.results = backtest_df
         self.trades = pd.DataFrame(trades) if trades else pd.DataFrame()
         
@@ -439,13 +474,37 @@ class BacktestEngine:
         return backtest_df
     
     def _calculate_metrics(self):
-        """Calculate performance metrics."""
+        """
+        Calculate performance metrics from ``self.results`` and ``self.trades``.
+
+        Account-level ratios (``sharpe_ratio``, ``sortino_ratio``, ``calmar_ratio``,
+        ``volatility_pct``, ``max_drawdown_pct``) use every bar of account equity and
+        keep their long-standing conventions (0.0 when undefined). The in-market
+        family added for mostly-idle accounts is:
+
+        * ``exposure_pct``: percentage of bars on which shares were held at the close.
+        * ``in_market_days``: number of bars whose close-to-close return was earned with
+          a position open (shares held at the previous close).
+        * ``avg_holding_days``: mean ``bars_held`` over closed trades (NaN if no trades).
+          For a trade entered at bar e and exited at bar x this is x - e, which is also
+          the number of bars it contributes to ``exposure_pct`` and ``in_market_days``
+          (the position opened at the end of bar e is held at closes e..x-1 and earns
+          the returns of bars e+1..x). The forced end-of-period exit counts one bar
+          less than the exposure it created, since the last bar's close is both the
+          mark and the liquidation.
+        * ``in_market_sharpe_ratio``, ``in_market_sortino_ratio``: same formulas and
+          risk-free convention as the account ratios, applied to the return on capital
+          at risk over in-market days only (see ``_in_market_returns``). NaN when fewer
+          than two in-market days exist or their variance is zero, because "undefined"
+          and "zero" mean different things for a ratio and the account-level 0.0
+          convention already hides that distinction.
+        """
         if self.results is None or self.results.empty:
             return
-        
+
         equity = self.results['equity']
         returns = self.results['returns'].dropna()
-        
+
         # Basic metrics
         total_return = (equity.iloc[-1] / equity.iloc[0] - 1) * 100
         total_trades = len(self.trades) if not self.trades.empty else 0
@@ -499,7 +558,19 @@ class BacktestEngine:
             max_drawdown = 0
             calmar_ratio = 0
             volatility = 0
-        
+
+        # Exposure and in-market metrics (see docstring)
+        position = self.results['position']
+        exposure_pct = float((position > 0).mean() * 100.0) if len(position) else 0.0
+        in_market_returns = self._in_market_returns()
+        in_market_days = int(len(in_market_returns))
+        in_market_sharpe = self._calculate_sharpe(in_market_returns, undefined=np.nan)
+        in_market_sortino = self._calculate_sortino(in_market_returns, undefined=np.nan)
+        if total_trades > 0 and 'bars_held' in self.trades.columns:
+            avg_holding_days = float(self.trades['bars_held'].mean())
+        else:
+            avg_holding_days = np.nan
+
         self.metrics = {
             'total_return_pct': total_return,
             'final_capital': equity.iloc[-1],
@@ -514,31 +585,83 @@ class BacktestEngine:
             'calmar_ratio': calmar_ratio,
             'max_drawdown_pct': max_drawdown,
             'volatility_pct': volatility,
+            'exposure_pct': exposure_pct,
+            'avg_holding_days': avg_holding_days,
+            'in_market_days': in_market_days,
+            'in_market_sharpe_ratio': in_market_sharpe,
+            'in_market_sortino_ratio': in_market_sortino,
             'stop_loss_trades': stop_loss_trades,
             'trailing_stop_trades': trailing_stop_trades,
             'signal_trades': signal_trades,
             'max_drawdown_trades': max_dd_trades
         }
-    
-    def _calculate_sharpe(self, returns: pd.Series, risk_free_rate: float = None) -> float:
-        """Calculate Sharpe ratio (annualized)."""
+
+    def _in_market_returns(self) -> pd.Series:
+        """
+        Daily return on the capital at risk, on in-market days only.
+
+        For every bar i whose previous close had shares held (``position[i-1] > 0``)
+        the return is ``(equity[i] - equity[i-1]) / (position[i-1] * price[i-1])``:
+        the day's change in account equity divided by the market value of the position
+        at the previous close. Bars with no position are dropped rather than counted
+        as zero, so the series is the stitched-together experience of the money that
+        was actually invested.
+
+        Why this basis: the account-level Sharpe is diluted by the cash fraction
+        (1 - position_size, 90% at the default sizing) on invested days and by the
+        idle days in between, so it mixes trade quality with sizing and frequency.
+        The return on capital at risk is independent of position_size to first order
+        and is directly comparable with the Sharpe of a fully invested buy-and-hold
+        series, which is what the worked example reports next to it.
+
+        Bookkeeping: the exit commission falls on an in-market day and is included.
+        The entry commission is paid at the close of the entry bar, which is not an
+        in-market day (nothing was held at the previous close), so it is excluded;
+        at 0.1% per side that omits 0.1% of the position value once per trade.
+        Returns an empty Series when the account never held a position.
+        """
+        if self.results is None or self.results.empty or 'position' not in self.results.columns:
+            return pd.Series(dtype=float)
+        equity = self.results['equity'].astype(float)
+        price = self.results['price'].astype(float)
+        position = self.results['position'].astype(float)
+        prev_position = position.shift(1)
+        prev_value = prev_position * price.shift(1)
+        mask = (prev_position > 0) & (prev_value > 0)
+        if not mask.any():
+            return pd.Series(dtype=float)
+        pnl = equity - equity.shift(1)
+        return (pnl[mask] / prev_value[mask]).astype(float)
+
+    def _calculate_sharpe(self, returns: pd.Series, risk_free_rate: float = None, undefined: float = 0.0) -> float:
+        """
+        Calculate Sharpe ratio (annualized): (mean daily return * 252 - rf) / (daily std * sqrt(252)).
+
+        Args:
+            returns: Series of daily returns
+            risk_free_rate: Annual risk-free rate (default: self.risk_free_rate)
+            undefined: Value returned when the ratio is undefined (empty input, fewer
+                than two observations, zero or NaN standard deviation, non-finite
+                result). The account-level metrics keep the historical 0.0; the
+                in-market metrics pass NaN.
+        """
         if len(returns) == 0:
-            return 0.0
-        
+            return undefined
+
         if risk_free_rate is None:
             risk_free_rate = self.risk_free_rate
-        
+
         std_dev = returns.std()
         if std_dev == 0 or np.isnan(std_dev):
-            return 0.0
-        
+            return undefined
+
         excess_returns = returns.mean() * 252 - risk_free_rate
         sharpe = excess_returns / (std_dev * np.sqrt(252))
-        
+
         # Handle NaN or infinite values
         if np.isnan(sharpe) or np.isinf(sharpe):
-            return 0.0
-        
+            return undefined
+
         return sharpe
     
     def _calculate_max_drawdown(self, equity: pd.Series) -> float:
@@ -550,42 +673,45 @@ class BacktestEngine:
         drawdown = (equity - peak) / peak
         return abs(drawdown.min()) * 100
     
-    def _calculate_sortino(self, returns: pd.Series, risk_free_rate: float = 0.02) -> float:
+    def _calculate_sortino(self, returns: pd.Series, risk_free_rate: float = None, undefined: float = 0.0) -> float:
         """
         Calculate Sortino ratio (downside deviation only).
-        
+
         Args:
             returns: Series of returns
             risk_free_rate: Annual risk-free rate (default: from self.risk_free_rate)
-        
+            undefined: Value returned when the ratio is undefined (no observations, no
+                negative returns, zero or NaN downside deviation, non-finite result);
+                0.0 for the account-level metric, NaN for the in-market one
+
         Returns:
             Sortino ratio (annualized)
         """
         if len(returns) == 0:
-            return 0.0
-        
+            return undefined
+
         if risk_free_rate is None:
             risk_free_rate = self.risk_free_rate
-        
+
         # Only consider negative returns (downside)
         downside_returns = returns[returns < 0]
-        
+
         if len(downside_returns) == 0:
-            # No downside, return high value or 0
-            return 0.0
-        
+            # No downside: the ratio is undefined rather than infinite
+            return undefined
+
         downside_std = downside_returns.std() * np.sqrt(252)
-        
+
         if downside_std == 0 or np.isnan(downside_std):
-            return 0.0
-        
+            return undefined
+
         excess_return = returns.mean() * 252 - risk_free_rate
         sortino = excess_return / downside_std
-        
+
         # Handle NaN or infinite values
         if np.isnan(sortino) or np.isinf(sortino):
-            return 0.0
-        
+            return undefined
+
         return sortino
     
     def _calculate_calmar(self, total_return_pct: float, max_drawdown_pct: float) -> float:
@@ -635,6 +761,11 @@ class BacktestEngine:
         print(f"Calmar Ratio:        {self.metrics['calmar_ratio']:.2f}")
         print(f"Max Drawdown:        {self.metrics['max_drawdown_pct']:.2f}%")
         print(f"Volatility (Ann):    {self.metrics['volatility_pct']:.2f}%")
+        print(f"Exposure:            {self.metrics['exposure_pct']:.1f}% of bars")
+        print(f"Avg Holding:         {self.metrics['avg_holding_days']:.1f} bars")
+        print(f"In-market Sharpe:    {self.metrics['in_market_sharpe_ratio']:.2f} "
+              f"({self.metrics['in_market_days']} bars)")
+        print(f"In-market Sortino:   {self.metrics['in_market_sortino_ratio']:.2f}")
         print("="*50 + "\n")
     
     def get_trades(self) -> pd.DataFrame:
@@ -674,11 +805,13 @@ class BacktestEngine:
         """
         import json
         
-        # Convert numpy types to native Python types for JSON serialization
+        # Convert numpy types to native Python types for JSON serialization; NaN (undefined ratio) becomes null
         metrics_serializable = {}
         for key, value in self.metrics.items():
             if isinstance(value, (np.integer, np.floating)):
-                metrics_serializable[key] = float(value)
+                value = float(value)
+            if isinstance(value, float) and np.isnan(value):
+                metrics_serializable[key] = None
             elif isinstance(value, (int, float)):
                 metrics_serializable[key] = value
             else:

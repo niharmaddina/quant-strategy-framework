@@ -67,6 +67,7 @@ quant-strategy-framework/
 │   │
 │   └── test_*.py          # Test files
 │       ├── test_backtest_engine_comprehensive.py  # 52 tests
+│       ├── test_risk_metrics.py                   # exposure / holding-period / in-market ratio tests
 │       ├── test_universe_comprehensive.py         # 39 tests
 │       ├── test_data_fetcher.py
 │       ├── test_indicators.py

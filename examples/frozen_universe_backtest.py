@@ -49,7 +49,10 @@ from universe.constructor import UniverseConstructor
 DEFAULT_UNIVERSE = os.path.join(PROJECT_ROOT, "universe", "universe_mean_reversion_manual_50.txt")
 FALLBACK_UNIVERSE = os.path.join(PROJECT_ROOT, "universe", "universe_mean_reversion_manual.txt")
 
-STRATEGY_COLS = ["total_return_pct", "win_rate_pct", "sharpe_ratio", "max_drawdown_pct", "total_trades"]
+STRATEGY_COLS = [
+    "total_return_pct", "win_rate_pct", "sharpe_ratio", "max_drawdown_pct", "total_trades",
+    "exposure_pct", "avg_holding_days", "in_market_days", "in_market_sharpe_ratio",
+]
 BH_COLS = ["bh_total_return_pct", "bh_sharpe_ratio", "bh_max_drawdown_pct"]
 
 
@@ -166,6 +169,11 @@ def run_symbol(symbol: str, data: pd.DataFrame, initial_capital: float, position
         "max_drawdown_pct": float(m["max_drawdown_pct"]),
         "total_trades": int(m["total_trades"]),
         "profit_factor": float(m["profit_factor"]),
+        "exposure_pct": float(m["exposure_pct"]),
+        "avg_holding_days": float(m["avg_holding_days"]),
+        "in_market_days": int(m["in_market_days"]),
+        "in_market_sharpe_ratio": float(m["in_market_sharpe_ratio"]),
+        "in_market_sortino_ratio": float(m["in_market_sortino_ratio"]),
         "bh_total_return_pct": float((close.iloc[-1] / close.iloc[0] - 1.0) * 100.0),
         "bh_sharpe_ratio": float(engine._calculate_sharpe(bh_returns)),
         "bh_max_drawdown_pct": float(engine._calculate_max_drawdown(bh_equity)),
@@ -194,21 +202,32 @@ def df_to_markdown(df: pd.DataFrame, floatfmt: str = "{:.2f}") -> str:
 
 
 def aggregate_table(results: pd.DataFrame) -> pd.DataFrame:
+    """Mean and median across symbols. Buy-and-hold is always invested, so its in-market Sharpe is its Sharpe."""
+    bh_exposure = pd.Series(100.0, index=results.index)
     rows = []
     for label, s_col, b_col in [
         ("Total return (%)", "total_return_pct", "bh_total_return_pct"),
-        ("Sharpe ratio", "sharpe_ratio", "bh_sharpe_ratio"),
+        ("Sharpe ratio (account)", "sharpe_ratio", "bh_sharpe_ratio"),
+        ("Sharpe ratio (in-market)", "in_market_sharpe_ratio", "bh_sharpe_ratio"),
         ("Max drawdown (%)", "max_drawdown_pct", "bh_max_drawdown_pct"),
+        ("Exposure (% of bars)", "exposure_pct", bh_exposure),
+        ("Avg holding (bars)", "avg_holding_days", None),
         ("Win rate (%)", "win_rate_pct", None),
         ("Trades per symbol", "total_trades", None),
     ]:
+        if b_col is None:
+            bh = None
+        elif isinstance(b_col, str):
+            bh = results[b_col]
+        else:
+            bh = b_col
         rows.append(
             {
                 "metric": label,
                 "strategy mean": results[s_col].mean(),
                 "strategy median": results[s_col].median(),
-                "buy-and-hold mean": results[b_col].mean() if b_col else np.nan,
-                "buy-and-hold median": results[b_col].median() if b_col else np.nan,
+                "buy-and-hold mean": bh.mean() if bh is not None else np.nan,
+                "buy-and-hold median": bh.median() if bh is not None else np.nan,
             }
         )
     return pd.DataFrame(rows)
@@ -241,7 +260,10 @@ def write_summary(
     )
 
     per_symbol = results[
-        ["symbol", "bars", "total_trades", "total_return_pct", "win_rate_pct", "sharpe_ratio", "max_drawdown_pct"]
+        [
+            "symbol", "bars", "total_trades", "total_return_pct", "win_rate_pct", "sharpe_ratio",
+            "in_market_sharpe_ratio", "exposure_pct", "avg_holding_days", "max_drawdown_pct",
+        ]
         + BH_COLS
     ].copy()
 
@@ -273,6 +295,11 @@ def write_summary(
         f"- Buy-and-hold baseline: fully invested in the symbol from the first to the last bar of the same window, "
         "same Sharpe/drawdown formulas as the engine (risk-free rate "
         f"{engine.risk_free_rate:.0%}, 252-day annualisation)",
+        "- Two Sharpe columns for the strategy: `sharpe_ratio` is on daily account equity over every bar; "
+        "`in_market_sharpe_ratio` is on the daily return of the capital at risk over the bars a position was held "
+        "(`in_market_days` of them), see `BacktestEngine._in_market_returns`. Buy-and-hold is always invested, so "
+        "its single Sharpe is shown in both rows of the aggregate table. `exposure_pct` is the share of bars with "
+        "a position held at the close; `avg_holding_days` is the mean bars per trade",
         f"- Software: Python {platform.python_version()}, pandas {pd.__version__}, numpy {np.__version__}, "
         f"yfinance {yfinance.__version__}",
         "",
@@ -297,10 +324,13 @@ def write_summary(
         "like-for-like comparison with a fully invested buy-and-hold is not possible from this table alone. "
         "Buy-and-hold is reported as context, not as a benchmark the strategy was designed to beat.",
         "- No slippage, no spread, no borrow or financing, fills at the daily close, 0.1% commission per side.",
-        "- Sharpe here is the engine's formula: (annualised mean daily return - 2% risk-free) / annualised "
+        "- The account Sharpe is the engine's formula: (annualised mean daily return - 2% risk-free) / annualised "
         "volatility of account equity. An account that sits mostly in cash earns roughly 0%, so its excess return "
-        "is about -2% divided by a very small volatility; that is why the strategy Sharpe values are large and "
-        "negative even where the account did not lose money. Read them as 'rarely invested', not 'large losses'.",
+        "is about -2% divided by a very small volatility; that is why the account Sharpe values are large and "
+        "negative even where the account did not lose money. Read them as 'rarely invested', not 'large losses'. "
+        "The in-market Sharpe removes the idle days and the cash fraction and is the column to compare with "
+        "buy-and-hold's Sharpe; it is estimated from only `in_market_days` observations per symbol (about a "
+        "tenth of the bars), so it is noisy, and it is NaN for a symbol with fewer than two in-market bars.",
         "- The universe is a hand-picked list of large, long-lived names and ETFs, written after the test window "
         "with knowledge of which names survived. That limits but does not remove survivorship bias: it is not a "
         "point-in-time constituent list.",
@@ -371,6 +401,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(
             f"[{i}/{len(symbols)}] {sym:6s} bars={row['bars']:4d} trades={row['total_trades']:3d} "
             f"ret={row['total_return_pct']:7.2f}% win={row['win_rate_pct']:6.2f}% sharpe={row['sharpe_ratio']:6.2f} "
+            f"in-mkt sharpe={row['in_market_sharpe_ratio']:6.2f} exp={row['exposure_pct']:5.1f}% "
             f"mdd={row['max_drawdown_pct']:6.2f}% | B&H ret={row['bh_total_return_pct']:8.2f}%"
         )
 

@@ -90,3 +90,40 @@ class TestSwingTradingIndicators:
             assert (rsi_values <= 100).all()
             assert not rsi_values.isna().any()
 
+
+
+class TestSwingTradingIndicatorParameters:
+    """Keyword thresholds added for walk-forward evaluation; the defaults must reproduce the shipped rules."""
+
+    @pytest.mark.fast
+    def test_defaults_match_explicit_defaults(self, sample_price_data):
+        a = SwingTradingIndicators(sample_price_data).get_full_analysis()
+        b = SwingTradingIndicators(
+            sample_price_data, rsi_oversold=35.0, rsi_overbought=65.0, bb_period=20, bb_std_dev=2.0
+        ).get_full_analysis()
+        pd.testing.assert_frame_equal(a, b)
+
+    @pytest.mark.fast
+    def test_rsi_threshold_changes_flags_monotonically(self, sample_price_data):
+        loose = SwingTradingIndicators(sample_price_data, rsi_oversold=50.0).get_signals_df()
+        default = SwingTradingIndicators(sample_price_data).get_signals_df()
+        strict = SwingTradingIndicators(sample_price_data, rsi_oversold=20.0).get_signals_df()
+        assert loose['rsi_oversold'].sum() >= default['rsi_oversold'].sum() >= strict['rsi_oversold'].sum()
+        assert loose['rsi_oversold'].sum() > strict['rsi_oversold'].sum()
+
+    @pytest.mark.fast
+    def test_bollinger_width_scales_with_std_dev(self, sample_price_data):
+        narrow = SwingTradingIndicators(sample_price_data, bb_std_dev=1.0).get_indicators_df()
+        wide = SwingTradingIndicators(sample_price_data, bb_std_dev=2.0).get_indicators_df()
+        # width = 2 * k * std / middle, so doubling k doubles the width; the middle band is unchanged
+        pd.testing.assert_series_equal(wide['bb_width'], 2.0 * narrow['bb_width'], check_names=False, rtol=1e-9)
+        pd.testing.assert_series_equal(wide['bb_middle'], narrow['bb_middle'])
+
+    @pytest.mark.fast
+    def test_invalid_parameters_raise(self, sample_price_data):
+        with pytest.raises(ValueError):
+            SwingTradingIndicators(sample_price_data, rsi_oversold=70.0, rsi_overbought=65.0)
+        with pytest.raises(ValueError):
+            SwingTradingIndicators(sample_price_data, bb_period=1)
+        with pytest.raises(ValueError):
+            SwingTradingIndicators(sample_price_data, bb_std_dev=0.0)
