@@ -9,9 +9,9 @@ Usage:
     python tests/run_all_tests.py --verbose    # Verbose output
 """
 
-import sys
-import subprocess
 import argparse
+import subprocess
+import sys
 from pathlib import Path
 
 # Add project root to path

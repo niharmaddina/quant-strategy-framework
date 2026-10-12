@@ -4,6 +4,7 @@ Demonstrates how to use the components programmatically.
 """
 
 import os
+
 import matplotlib.pyplot as plt
 
 from backtest.engine import BacktestEngine
@@ -102,7 +103,7 @@ def example_backtest():
             commission=0.001,
         )
     
-    results = backtest.run()
+    backtest.run()
     backtest.print_metrics()
     
     # Get trades

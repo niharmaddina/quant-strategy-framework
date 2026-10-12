@@ -2,12 +2,12 @@
 Comprehensive tests for MeanReversionIndicators with granular price data.
 """
 
-import pytest
-import pandas as pd
 import numpy as np
+import pandas as pd
+import pytest
 
-from strategy.mean_reversion import MeanReversionIndicators
 from data.fetcher import DataFetcher
+from strategy.mean_reversion import MeanReversionIndicators
 
 
 class TestMeanReversionIndicators:

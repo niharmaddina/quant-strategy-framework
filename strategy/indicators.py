@@ -416,14 +416,9 @@ class SwingTradingIndicators:
         sell_condition = strong_sell_condition | good_sell_condition
         signals.loc[sell_condition, 'signal'] = -1
         
-        # If both bullish and bearish signals occur on same day, use the stronger one
-        both_signals = (signals['signal'] == 1) & (signals['signal'] == -1)  # This won't happen, but handle edge case
-        # Actually, check if we have conflicting signals
-        has_buy = signals['signal'] == 1
-        has_sell = signals['signal'] == -1
-        # If both conditions were true, prefer the stronger one
-        # (This is already handled by the conditions above, but keep for safety)
-        
+        # Buy and sell conditions are mutually exclusive by construction (the sell
+        # assignment above runs last and would win if they ever overlapped).
+
         # ========================================================================
         # SIGNAL CONFIDENCE (Sophisticated calculation)
         # ========================================================================

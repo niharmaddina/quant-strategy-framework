@@ -13,9 +13,9 @@ from datetime import datetime, timedelta
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
+from backtest.engine import BacktestEngine
 from data.fetcher import DataFetcher
 from strategy.mean_reversion import MeanReversionIndicators
-from backtest.engine import BacktestEngine
 
 
 def example_mean_reversion_intraday():

@@ -300,7 +300,8 @@ class BacktestEngine:
                         trading_halted = False
             
             # Close position if we have one and signal indicates exit
-            # Improved exit logic for SWING TRADES: close on sell signal, trend reversal, profit target, or max holding period
+            # Improved exit logic for SWING TRADES: close on sell signal, trend reversal,
+            # profit target, or max holding period
             if position != 0 and not trading_halted:
                 # Calculate current return
                 current_return_pct = ((current_price - entry_price) / entry_price) * 100
@@ -456,7 +457,11 @@ class BacktestEngine:
             win_rate = len(winning_trades) / total_trades * 100
             avg_win = winning_trades['pnl'].mean() if len(winning_trades) > 0 else 0
             avg_loss = losing_trades['pnl'].mean() if len(losing_trades) > 0 else 0
-            profit_factor = abs(winning_trades['pnl'].sum() / losing_trades['pnl'].sum()) if len(losing_trades) > 0 and losing_trades['pnl'].sum() != 0 else 0
+            losing_pnl_sum = losing_trades['pnl'].sum()
+            if len(losing_trades) > 0 and losing_pnl_sum != 0:
+                profit_factor = abs(winning_trades['pnl'].sum() / losing_pnl_sum)
+            else:
+                profit_factor = 0
             avg_return_per_trade = self.trades['return_pct'].mean()
             
             # Count exit reasons

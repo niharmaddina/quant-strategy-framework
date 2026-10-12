@@ -2,8 +2,8 @@
 Fast unit tests for SwingTradingIndicators.
 """
 
-import pytest
 import pandas as pd
+import pytest
 
 from strategy.indicators import SwingTradingIndicators
 

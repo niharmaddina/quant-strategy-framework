@@ -2,6 +2,7 @@
 
 from .engine import BacktestEngine
 
+
 # Lazy import visualizers to avoid matplotlib dependency for tests
 def __getattr__(name):
     if name == 'BacktestVisualizer':

@@ -8,8 +8,8 @@ This module provides:
 - Preprocessing utilities for intraday data
 """
 
-from ml.labeling import label_engine_tp_sl_first_long_only
 from ml.features import build_mr_quality_features
+from ml.labeling import label_engine_tp_sl_first_long_only
 from ml.model import MRSignalQualityModel
 from ml.preprocessing import prep_ohlcv, resample_ohlcv
 

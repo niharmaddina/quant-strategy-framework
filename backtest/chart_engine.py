@@ -3,11 +3,12 @@ Advanced charting and visualization engine for backtest results.
 Provides comprehensive charts, comparisons, and analysis visualizations.
 """
 
-import matplotlib.pyplot as plt
-from matplotlib.gridspec import GridSpec
-import pandas as pd
-import numpy as np
 from typing import TYPE_CHECKING, Dict, Optional, Tuple
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from matplotlib.gridspec import GridSpec
 
 if TYPE_CHECKING:  # type hints only; a real import would be circular
     from backtest.engine import BacktestEngine
@@ -683,7 +684,7 @@ class ChartEngine:
             risks.append(metrics.get('volatility_pct', 0))
             labels.append('Benchmark')
         
-        scatter = ax.scatter(risks, returns, s=200, alpha=0.6, 
+        ax.scatter(risks, returns, s=200, alpha=0.6, 
                            c=range(len(labels)), cmap='viridis', edgecolors='black')
         
         # Add labels
@@ -854,7 +855,7 @@ class ChartEngine:
         returns = metrics_df['total_return_pct'].sort_values()
         colors_list = [self.colors['success'] if x >= 0 else self.colors['danger'] for x in returns.values]
         
-        bars = ax.barh(returns.index, returns.values, color=colors_list, alpha=0.7, edgecolor='black')
+        ax.barh(returns.index, returns.values, color=colors_list, alpha=0.7, edgecolor='black')
         
         for i, (idx, val) in enumerate(returns.items()):
             ax.text(val, i, f'{val:.1f}%', va='center', 
@@ -876,7 +877,7 @@ class ChartEngine:
                       (self.colors['warning'] if x >= 0 else self.colors['danger']) 
                       for x in sharpe.values]
         
-        bars = ax.barh(sharpe.index, sharpe.values, color=colors_list, alpha=0.7, edgecolor='black')
+        ax.barh(sharpe.index, sharpe.values, color=colors_list, alpha=0.7, edgecolor='black')
         
         ax.axvline(x=1, color=self.colors['success'], linestyle='--', alpha=0.7, label='Sharpe = 1')
         ax.axvline(x=0, color='black', linestyle='-', linewidth=1)
@@ -893,7 +894,7 @@ class ChartEngine:
             return
         
         win_rate = metrics_df['win_rate_pct'].sort_values()
-        bars = ax.barh(win_rate.index, win_rate.values, 
+        ax.barh(win_rate.index, win_rate.values, 
                       color=self.colors['info'], alpha=0.7, edgecolor='black')
         
         ax.axvline(x=50, color=self.colors['warning'], linestyle='--', alpha=0.7, label='50%')
@@ -911,7 +912,7 @@ class ChartEngine:
             return
         
         dd = metrics_df['max_drawdown_pct'].sort_values()
-        bars = ax.barh(dd.index, dd.values, color=self.colors['danger'], alpha=0.7, edgecolor='black')
+        ax.barh(dd.index, dd.values, color=self.colors['danger'], alpha=0.7, edgecolor='black')
         
         ax.set_title('Max Drawdown Comparison', fontsize=12, fontweight='bold')
         ax.set_xlabel('Max Drawdown (%)', fontsize=10)
@@ -926,7 +927,7 @@ class ChartEngine:
         returns = metrics_df['total_return_pct']
         risks = metrics_df['volatility_pct']
         
-        scatter = ax.scatter(risks, returns, s=300, alpha=0.6, 
+        ax.scatter(risks, returns, s=300, alpha=0.6, 
                            c=range(len(returns)), cmap='viridis', edgecolors='black', linewidths=2)
         
         for symbol in returns.index:

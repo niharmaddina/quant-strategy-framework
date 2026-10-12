@@ -5,8 +5,8 @@ Tests the full pipeline without network calls.
 
 import pytest
 
-from strategy.indicators import SwingTradingIndicators
 from backtest.engine import BacktestEngine
+from strategy.indicators import SwingTradingIndicators
 
 # Import visualizer only when needed (with try/except for optional dependency)
 try:

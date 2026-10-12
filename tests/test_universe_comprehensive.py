@@ -3,12 +3,13 @@ Comprehensive test suite for UniverseConstructor.
 Tests all functionality with mocking to avoid API rate limits.
 """
 
-import pytest
-import pandas as pd
-import numpy as np
 from unittest.mock import Mock, patch
 
-from universe.constructor import UniverseConstructor, SECTOR_MAPPING
+import numpy as np
+import pandas as pd
+import pytest
+
+from universe.constructor import SECTOR_MAPPING, UniverseConstructor
 
 
 class TestUniverseConstructorInitialization:
@@ -404,11 +405,6 @@ class TestCorrelationAnalysis:
             # Diagonal should be 1.0
             assert corr_matrix.loc['AAPL', 'AAPL'] == pytest.approx(1.0, abs=0.01)
             assert corr_matrix.loc['MSFT', 'MSFT'] == pytest.approx(1.0, abs=0.01)
-            
-            # AAPL and MSFT should be more correlated than AAPL and JPM
-            aapl_msft_corr = abs(corr_matrix.loc['AAPL', 'MSFT'])
-            aapl_jpm_corr = abs(corr_matrix.loc['AAPL', 'JPM'])
-            # This may not always be true due to randomness, but likely
     
     @pytest.mark.fast
     def test_correlation_matrix_caching(self):
@@ -431,10 +427,10 @@ class TestCorrelationAnalysis:
         symbols = ['AAPL', 'MSFT']
         
         # First call
-        matrix1 = universe.calculate_correlation_matrix(symbols)
+        universe.calculate_correlation_matrix(symbols)
         
         # Second call with same symbols (should use cache)
-        matrix2 = universe.calculate_correlation_matrix(symbols)
+        universe.calculate_correlation_matrix(symbols)
         
         # Should only be called once (cached on second call)
         # Note: actual caching happens in the method, but we're testing the concept
@@ -892,7 +888,7 @@ class TestStrategyTestingHelpers:
         
         universe.build_optimized_universe = lambda **kwargs: ['TSLA', 'NVDA']
         
-        symbols = universe.get_universe_for_strategy_testing(
+        universe.get_universe_for_strategy_testing(
             strategy_type='day_trading',
             target_size=20
         )
@@ -908,7 +904,7 @@ class TestStrategyTestingHelpers:
         
         universe.build_optimized_universe = lambda **kwargs: ['JPM', 'JNJ']
         
-        symbols = universe.get_universe_for_strategy_testing(
+        universe.get_universe_for_strategy_testing(
             strategy_type='position_trading',
             target_size=15
         )

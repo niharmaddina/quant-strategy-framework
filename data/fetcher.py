@@ -4,9 +4,9 @@ Uses yfinance for free market data.
 Supports both real API calls and mock data for testing.
 """
 
+import time
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
-import time
 
 import pandas as pd
 import yfinance as yf

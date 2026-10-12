@@ -5,8 +5,9 @@ Handles data preparation, resampling, and format standardization
 for intraday data from yfinance.
 """
 
-import pandas as pd
 from typing import Optional
+
+import pandas as pd
 
 
 def prep_ohlcv(df: pd.DataFrame) -> pd.DataFrame:

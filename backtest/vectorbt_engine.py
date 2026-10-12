@@ -241,7 +241,8 @@ class VectorBTBacktestEngine:
                     pass
 
             # Keep only columns the rest of the repo expects.
-            keep = [c for c in ["entry_date", "exit_date", "entry_price", "exit_price", "shares", "pnl", "return_pct"] if c in trades.columns]
+            wanted = ["entry_date", "exit_date", "entry_price", "exit_price", "shares", "pnl", "return_pct"]
+            keep = [c for c in wanted if c in trades.columns]
             trades = trades[keep].copy()
 
             # Provide an exit_reason column for compatibility (VectorBT doesn't map 1:1)
@@ -273,7 +274,10 @@ class VectorBTBacktestEngine:
                 if len(losing) and float(losing["pnl"].sum()) != 0.0
                 else 0.0
             )
-            avg_return_per_trade = float(self.trades["return_pct"].mean()) if "return_pct" in self.trades.columns else 0.0
+            if "return_pct" in self.trades.columns:
+                avg_return_per_trade = float(self.trades["return_pct"].mean())
+            else:
+                avg_return_per_trade = 0.0
         else:
             win_rate = 0.0
             avg_win = 0.0

@@ -21,14 +21,13 @@ Version: 2.0
 ================================================================================
 """
 
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
 import time
 import warnings
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 import yfinance as yf
-
 
 # ============================================================================
 # CONSTANTS - SECTOR CLASSIFICATIONS

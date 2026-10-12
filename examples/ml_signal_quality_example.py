@@ -15,14 +15,14 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from data.fetcher import DataFetcher
-from strategy.mean_reversion import MeanReversionIndicators
+import pandas as pd
+
 from backtest.engine import BacktestEngine
-from ml.preprocessing import prep_ohlcv
+from data.fetcher import DataFetcher
 from ml.labeling import label_engine_tp_sl_first_long_only
 from ml.model import MRSignalQualityModel
-
-import pandas as pd
+from ml.preprocessing import prep_ohlcv
+from strategy.mean_reversion import MeanReversionIndicators
 
 
 def main():
@@ -57,7 +57,9 @@ def main():
     df_5m_for_indicators = df_5m.reset_index()
     # Ensure 'date' column exists (reset_index should create it, but be safe)
     if 'date' not in df_5m_for_indicators.columns and len(df_5m_for_indicators) > 0:
-        df_5m_for_indicators['date'] = df_5m.index if isinstance(df_5m.index, pd.DatetimeIndex) else pd.to_datetime(df_5m.index)
+        df_5m_for_indicators['date'] = (
+            df_5m.index if isinstance(df_5m.index, pd.DatetimeIndex) else pd.to_datetime(df_5m.index)
+        )
     
     # ========================================================================
     # 2. Run MeanReversionIndicators
@@ -104,7 +106,8 @@ def main():
     
     labeled_count = y.notna().sum()
     positive_labels = (y == 1).sum()
-    print(f"   Labeled {labeled_count} signals ({positive_labels} positive, {labeled_count - positive_labels} negative)")
+    negative_labels = labeled_count - positive_labels
+    print(f"   Labeled {labeled_count} signals ({positive_labels} positive, {negative_labels} negative)")
     
     # ========================================================================
     # 4. Train ML model

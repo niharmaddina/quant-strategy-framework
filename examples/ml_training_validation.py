@@ -6,19 +6,20 @@ Trains the ML signal quality model and validates its performance.
 
 import sys
 from pathlib import Path
+
 import pandas as pd
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from data.fetcher import DataFetcher
-from strategy.mean_reversion import MeanReversionIndicators
+from sklearn.metrics import accuracy_score, classification_report, f1_score, precision_score, recall_score
+
 from backtest.engine import BacktestEngine
-from ml.preprocessing import prep_ohlcv
+from data.fetcher import DataFetcher
 from ml.labeling import label_engine_tp_sl_first_long_only
 from ml.model import MRSignalQualityModel
-
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report
+from ml.preprocessing import prep_ohlcv
+from strategy.mean_reversion import MeanReversionIndicators
 
 
 def main():
@@ -156,8 +157,6 @@ def main():
     
     # Get indices with labels
     labeled_indices = y[y.notna()].index
-    X_labeled = full.loc[labeled_indices]
-    y_labeled = y.loc[labeled_indices]
     
     # Split by time (earlier data for training, later for validation)
     split_idx = int(len(labeled_indices) * 0.7)

@@ -184,8 +184,11 @@ def main():
     """Main entry point."""
     try:
         from utils.validation import (
-            validate_symbol, validate_date_range, validate_capital, 
-            validate_position_size, normalize_symbol
+            normalize_symbol,
+            validate_capital,
+            validate_date_range,
+            validate_position_size,
+            validate_symbol,
         )
     except ImportError:
         # Fallback if utils not available
@@ -220,7 +223,8 @@ def main():
     parser.add_argument('--universe-file', type=str, default=None,
                         help='Load a fixed universe from a .txt or .csv file (avoids optimized selection bias)')
     parser.add_argument('--universe-manual', action='store_true',
-                        help='Build a manual sector-balanced universe (no metadata filters; avoids look-ahead from current fundamentals)')
+                        help='Build a manual sector-balanced universe '
+                             '(no metadata filters; avoids look-ahead from current fundamentals)')
     parser.add_argument('--target-size', type=int, default=20,
                         help='Target number of symbols when building a universe (default: 20)')
     parser.add_argument('--stocks-per-sector', type=int, default=None,

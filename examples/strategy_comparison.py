@@ -2,12 +2,13 @@
 Strategy performance comparison: Swing Trading Strategy vs Buy-and-Hold S&P 500
 """
 
-import matplotlib.pyplot as plt
-from matplotlib.dates import YearLocator, MonthLocator, DateFormatter
-import yfinance as yf
-import pandas as pd
 import time
 from datetime import datetime, timedelta
+
+import matplotlib.pyplot as plt
+import pandas as pd
+import yfinance as yf
+from matplotlib.dates import DateFormatter, MonthLocator, YearLocator
 
 from backtest.engine import BacktestEngine
 from data.fetcher import DataFetcher
@@ -197,7 +198,8 @@ def run_strategy_comparison(
     if 'bullish_strength' in signals.columns:
         print(f"  Max bullish strength: {signals['bullish_strength'].max()}")
         print(f"  Max bearish strength: {signals['bearish_strength'].max()}")
-        print(f"  Signals with strength >= 2: {len(signals[(signals['bullish_strength'] >= 2) | (signals['bearish_strength'] >= 2)])}")
+        strong = (signals['bullish_strength'] >= 2) | (signals['bearish_strength'] >= 2)
+        print(f"  Signals with strength >= 2: {int(strong.sum())}")
     
     backtest = BacktestEngine(
         data=data,

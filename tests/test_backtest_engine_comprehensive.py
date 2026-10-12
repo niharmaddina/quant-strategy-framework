@@ -3,10 +3,11 @@ Comprehensive test suite for BacktestEngine.
 Tests all functionality, calculations, and edge cases.
 """
 
-import pytest
-import pandas as pd
-import numpy as np
 import json
+
+import numpy as np
+import pandas as pd
+import pytest
 
 from backtest.engine import BacktestEngine
 
@@ -222,7 +223,7 @@ class TestTradeExecution:
             commission=0.0  # No commission for easier calculation
         )
         
-        results = engine.run()
+        engine.run()
         trades = engine.get_trades()
         
         if len(trades) > 0:
@@ -248,7 +249,7 @@ class TestTradeExecution:
             commission=0.001  # 0.1% commission
         )
         
-        results = engine.run()
+        engine.run()
         trades = engine.get_trades()
         
         if len(trades) > 0:
@@ -284,7 +285,7 @@ class TestTradeExecution:
         })
         
         engine = BacktestEngine(simple_data, signals_df, initial_capital=100000)
-        results = engine.run()
+        engine.run()
         trades = engine.get_trades()
         
         assert len(trades) == 2  # Two complete trades
@@ -307,14 +308,8 @@ class TestTradeExecution:
         # Equity should never go negative
         assert (results['equity'] >= 0).all()
         
-        # Equity should be continuous (no jumps except from trades)
-        equity_diff = results['equity'].diff()
-        # Allow for trade-related changes (closing positions can cause jumps)
-        # Filter out NaN values
-        equity_diff_clean = equity_diff.dropna()
-        # Large negative jumps can occur when closing losing positions
-        # Just verify equity never goes negative
-        assert (results['equity'] >= 0).all()
+        # Equity can jump when positions close, so only the non-negativity
+        # invariant above is asserted here.
     
     @pytest.mark.fast
     def test_returns_calculation(self, simple_data, buy_sell_signals):
@@ -387,7 +382,7 @@ class TestStopLoss:
             commission=0.0
         )
         
-        results = engine.run()
+        engine.run()
         trades = engine.get_trades()
         
         # Should have one trade that was stopped out
@@ -412,7 +407,7 @@ class TestStopLoss:
             commission=0.0
         )
         
-        results = engine.run()
+        engine.run()
         trades = engine.get_trades()
         
         if len(trades) > 0:
@@ -445,7 +440,7 @@ class TestStopLoss:
             commission=0.0
         )
         
-        results = engine.run()
+        engine.run()
         trades = engine.get_trades()
         
         # Should exit on stop loss, not signal
@@ -499,7 +494,7 @@ class TestTrailingStop:
             commission=0.0
         )
         
-        results = engine.run()
+        engine.run()
         trades = engine.get_trades()
         
         # Should have one trade
@@ -527,7 +522,6 @@ class TestTrailingStop:
         # Equity curve should show profit capture from trailing stop
         # (if price rose then dropped, trailing stop should have captured some profit)
         max_equity = results['equity'].max()
-        final_equity = results['equity'].iloc[-1]
         
         # If trailing stop worked, we should have captured some upside
         # This is a basic check - actual implementation may vary
@@ -571,7 +565,7 @@ class TestMaxDrawdown:
             commission=0.0
         )
         
-        results = engine.run()
+        engine.run()
         trades = engine.get_trades()
         
         # Should have at least one trade
@@ -620,7 +614,7 @@ class TestExitConditions:
             commission=0.0
         )
         
-        results = engine.run()
+        engine.run()
         trades = engine.get_trades()
         
         if len(trades) > 0:
@@ -646,7 +640,7 @@ class TestExitConditions:
             commission=0.0
         )
         
-        results = engine.run()
+        engine.run()
         trades = engine.get_trades()
         
         if len(trades) > 0:
@@ -686,7 +680,7 @@ class TestPerformanceMetrics:
     def test_total_return_calculation(self, profitable_data, profitable_signals):
         """Test total return calculation."""
         engine = BacktestEngine(profitable_data, profitable_signals)
-        results = engine.run()
+        engine.run()
         metrics = engine.get_metrics()
         
         assert 'total_return_pct' in metrics
@@ -697,7 +691,7 @@ class TestPerformanceMetrics:
     def test_win_rate_calculation(self, profitable_data, profitable_signals):
         """Test win rate calculation."""
         engine = BacktestEngine(profitable_data, profitable_signals)
-        results = engine.run()
+        engine.run()
         metrics = engine.get_metrics()
         
         assert 'win_rate_pct' in metrics
@@ -708,7 +702,7 @@ class TestPerformanceMetrics:
     def test_profit_factor_calculation(self, profitable_data, profitable_signals):
         """Test profit factor calculation."""
         engine = BacktestEngine(profitable_data, profitable_signals)
-        results = engine.run()
+        engine.run()
         metrics = engine.get_metrics()
         
         assert 'profit_factor' in metrics
@@ -719,7 +713,7 @@ class TestPerformanceMetrics:
     def test_sharpe_ratio_calculation(self, profitable_data, profitable_signals):
         """Test Sharpe ratio calculation."""
         engine = BacktestEngine(profitable_data, profitable_signals)
-        results = engine.run()
+        engine.run()
         metrics = engine.get_metrics()
         
         assert 'sharpe_ratio' in metrics
@@ -731,7 +725,7 @@ class TestPerformanceMetrics:
     def test_sortino_ratio_calculation(self, profitable_data, profitable_signals):
         """Test Sortino ratio calculation."""
         engine = BacktestEngine(profitable_data, profitable_signals)
-        results = engine.run()
+        engine.run()
         metrics = engine.get_metrics()
         
         assert 'sortino_ratio' in metrics
@@ -743,7 +737,7 @@ class TestPerformanceMetrics:
     def test_calmar_ratio_calculation(self, profitable_data, profitable_signals):
         """Test Calmar ratio calculation."""
         engine = BacktestEngine(profitable_data, profitable_signals)
-        results = engine.run()
+        engine.run()
         metrics = engine.get_metrics()
         
         assert 'calmar_ratio' in metrics
@@ -755,7 +749,7 @@ class TestPerformanceMetrics:
     def test_max_drawdown_calculation(self, profitable_data, profitable_signals):
         """Test max drawdown calculation."""
         engine = BacktestEngine(profitable_data, profitable_signals)
-        results = engine.run()
+        engine.run()
         metrics = engine.get_metrics()
         
         assert 'max_drawdown_pct' in metrics
@@ -767,7 +761,7 @@ class TestPerformanceMetrics:
     def test_volatility_calculation(self, profitable_data, profitable_signals):
         """Test volatility calculation."""
         engine = BacktestEngine(profitable_data, profitable_signals)
-        results = engine.run()
+        engine.run()
         metrics = engine.get_metrics()
         
         assert 'volatility_pct' in metrics
@@ -958,7 +952,7 @@ class TestEdgeCases:
         signals.loc[10, 'signal'] = 1  # Buy on day 10, no sell
         
         engine = BacktestEngine(sample_price_data, signals)
-        results = engine.run()
+        engine.run()
         
         trades = engine.get_trades()
         # Should close position at end of period or due to max holding or neutral exit
@@ -990,7 +984,7 @@ class TestEdgeCases:
         )
         
         results = engine.run()
-        trades = engine.get_trades()
+        engine.get_trades()
         
         # Should handle gracefully - may have no trades if capital insufficient
         assert isinstance(results, pd.DataFrame)
@@ -1009,7 +1003,7 @@ class TestEdgeCases:
         })
         
         engine = BacktestEngine(data, signals)
-        results = engine.run()
+        engine.run()
         metrics = engine.get_metrics()
         
         # Should handle zero returns without errors

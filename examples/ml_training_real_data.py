@@ -7,25 +7,27 @@ If yfinance is unavailable, it provides clear instructions.
 
 import sys
 from pathlib import Path
+
 import pandas as pd
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+
 from data.fetcher import DataFetcher
-from strategy.mean_reversion import MeanReversionIndicators
-from ml.preprocessing import prep_ohlcv
 from ml.labeling import label_engine_tp_sl_first_long_only
 from ml.model import MRSignalQualityModel
-
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from ml.preprocessing import prep_ohlcv
+from strategy.mean_reversion import MeanReversionIndicators
 
 
 def test_yfinance_connection():
     """Test if yfinance is working."""
     try:
-        import yfinance as yf
         import time
+
+        import yfinance as yf
         # Don't test with .info as it triggers rate limiting
         # Just try to fetch a small amount of historical data
         ticker = yf.Ticker("SPY")

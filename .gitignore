@@ -78,3 +78,10 @@ logs/*.log
 # Local virtualenvs and tool caches
 .venv*/
 .ruff_cache/
+
+# Tool caches
+.mypy_cache/
+
+# Committed worked-example outputs (override the global *.csv rule above)
+!results/*.csv
+!results/*.md

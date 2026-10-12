@@ -7,17 +7,16 @@ Goal:
 - deterministic / no-network (marked fast)
 """
 
-import pytest
-import pandas as pd
 import numpy as np
+import pandas as pd
+import pytest
 
-from ml.preprocessing import prep_ohlcv, resample_ohlcv
-from ml.labeling import label_engine_tp_sl_first_long_only
-from ml.features import build_mr_quality_features
-from ml.model import MRSignalQualityModel
-
-from strategy.mean_reversion import MeanReversionIndicators
 from backtest.engine import BacktestEngine
+from ml.features import build_mr_quality_features
+from ml.labeling import label_engine_tp_sl_first_long_only
+from ml.model import MRSignalQualityModel
+from ml.preprocessing import prep_ohlcv, resample_ohlcv
+from strategy.mean_reversion import MeanReversionIndicators
 
 
 class TestMLPreprocessing:

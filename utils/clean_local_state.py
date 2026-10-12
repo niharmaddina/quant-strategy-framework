@@ -10,7 +10,6 @@ import argparse
 import shutil
 from pathlib import Path
 
-
 DEFAULT_DIRS = [
     "output",
     "logs",

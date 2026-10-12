@@ -5,12 +5,12 @@ Fast unit tests for utility functions.
 import pytest
 
 from utils.validation import (
-    validate_symbol,
-    validate_date,
+    normalize_symbol,
     validate_capital,
-    validate_position_size,
+    validate_date,
     validate_date_range,
-    normalize_symbol
+    validate_position_size,
+    validate_symbol,
 )
 
 

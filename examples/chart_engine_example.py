@@ -10,15 +10,16 @@ Demonstrates the new ChartEngine with:
 
 import os
 import sys
-import pandas as pd
+
 import numpy as np
+import pandas as pd
 
 # Add project root to path
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
-from backtest.engine import BacktestEngine
 from backtest.chart_engine import ChartEngine
+from backtest.engine import BacktestEngine
 from strategy.indicators import SwingTradingIndicators
 from strategy.mean_reversion import MeanReversionIndicators
 
@@ -51,7 +52,7 @@ def example_comprehensive_dashboard():
     
     # Run backtest
     engine = BacktestEngine(data, signals_df[['signal']], initial_capital=100000)
-    results = engine.run()
+    engine.run()
     print(f"✓ Backtest complete: {engine.get_metrics()['total_return_pct']:.2f}% return")
     print()
     

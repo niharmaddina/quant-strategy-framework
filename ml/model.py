@@ -7,10 +7,10 @@ gated signals + size multipliers for BacktestEngine.
 
 import numpy as np
 import pandas as pd
-from sklearn.pipeline import Pipeline
-from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.impute import SimpleImputer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 
 from ml.features import build_mr_quality_features
 
@@ -169,8 +169,6 @@ class MRSignalQualityModel:
         """
         if self.cols_ is None:
             raise ValueError("Model not trained. Call fit() first.")
-        
-        clf = self.model_.named_steps['clf']
         
         # HistGradientBoostingClassifier doesn't have feature_importances_ directly
         # Use permutation importance as fallback
