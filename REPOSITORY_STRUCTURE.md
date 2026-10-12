@@ -33,13 +33,15 @@ quant-strategy-framework/
 ├── examples/              # Example scripts and demos
 │   ├── example_usage.py   # Basic usage examples
 │   ├── frozen_universe_backtest.py  # Reproducible frozen-universe run -> results/ (see README "Results")
+│   ├── plot_frozen_universe_results.py  # Figures for the README from results/ + data_cache/ (offline)
 │   ├── strategy_comparison.py  # Strategy vs buy-and-hold comparison (single symbol, with chart)
 │   ├── universe_demo.py   # Universe construction demo
 │   └── ...                # mean-reversion, chart-engine and ML examples
 │
-├── results/               # Committed outputs of examples/frozen_universe_backtest.py
+├── results/               # Committed outputs of the frozen-universe example
 │   ├── frozen50_2021_2024.csv
-│   └── summary.md
+│   ├── summary.md
+│   └── figures/           # fig1..fig4 PNGs (150 dpi) + figure_stats.json used by README captions
 │
 ├── ml/                    # ML feature/model utilities (optional)
 │   ├── __init__.py

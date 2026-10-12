@@ -2,7 +2,7 @@
 #   make test PYTHON=.venv/bin/python
 PYTHON ?= python
 
-.PHONY: help install test test-all lint fix example clean
+.PHONY: help install test test-all lint fix example figures clean
 
 help:
 	@echo "make install   - install runtime + dev requirements"
@@ -11,6 +11,7 @@ help:
 	@echo "make lint      - ruff check (E, F, I rules; 120 columns)"
 	@echo "make fix       - ruff check --fix (safe fixes only)"
 	@echo "make example   - frozen-universe backtest -> results/ (network: yfinance, cached in data_cache/)"
+	@echo "make figures   - figures for the README from results/ and data_cache/ (offline) -> results/figures/"
 	@echo "make clean     - remove local output/logs/caches (python -m utils.clean_local_state)"
 
 install:
@@ -30,6 +31,9 @@ fix:
 
 example:
 	$(PYTHON) examples/frozen_universe_backtest.py
+
+figures:
+	$(PYTHON) examples/plot_frozen_universe_results.py
 
 clean:
 	$(PYTHON) -m utils.clean_local_state

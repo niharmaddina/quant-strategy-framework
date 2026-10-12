@@ -1,0 +1,51 @@
+{
+  "source_csv": "results/frozen50_2021_2024.csv",
+  "window": "2021-01-04 to 2024-12-31",
+  "symbols": 50,
+  "best_three_by_strategy_return": [
+    "META",
+    "SHW",
+    "XLY"
+  ],
+  "worst_three_by_strategy_return": [
+    "XOM",
+    "HD",
+    "GOOGL"
+  ],
+  "equity_panel_symbols": [
+    "META",
+    "SHW",
+    "XLY",
+    "XOM",
+    "HD",
+    "GOOGL"
+  ],
+  "strategy_total_return_min_pct": -1.989,
+  "strategy_total_return_max_pct": 2.237,
+  "bh_total_return_min_pct": -32.048,
+  "bh_total_return_max_pct": 161.396,
+  "strategy_max_drawdown_max_pct": 3.126,
+  "bh_max_drawdown_min_pct": 16.061,
+  "bh_negative_symbols": [
+    "JNJ",
+    "PFE",
+    "UPS",
+    "VZ",
+    "AMT",
+    "O",
+    "NEE"
+  ],
+  "trades_pooled": 466,
+  "trade_return_median_pct": -0.139,
+  "trade_return_mean_pct": -0.002,
+  "trade_return_min_pct": -10.07,
+  "trade_return_max_pct": 20.318,
+  "trades_positive": 217,
+  "trades_nonpositive": 249,
+  "ew_strategy_total_return_pct": -0.185,
+  "ew_strategy_max_drawdown_pct": 0.244,
+  "ew_bh_total_return_pct": 49.837,
+  "ew_bh_max_drawdown_pct": 19.835,
+  "ew_bh_max_drawdown_date": "2022-09-30",
+  "ew_strategy_max_drawdown_date": "2023-05-24"
+}

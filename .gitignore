@@ -85,3 +85,5 @@ logs/*.log
 # Committed worked-example outputs (override the global *.csv rule above)
 !results/*.csv
 !results/*.md
+!results/figures/*.png
+!results/figures/*.json
