@@ -4,9 +4,11 @@ Backtesting, mean-reversion signals and frozen-universe tooling for swing-tradin
 Python. Built by Nihar Maddina and Tushar Gona (2025-2026); this is the maintained public home,
 the original development repository was `tgona/oni_strat_m1`.
 
-Status (October 2026): the fast test suite passes (147 tests, no network), `main.py` runs end to end
-with the legacy engine on current `yfinance` (1.7), and the VectorBT engine is available behind
-`--engine vectorbt` for anyone with VectorBT installed. Research tooling, not production trading.
+Status (October 2026): the fast test suite passes (147 tests, no network) and runs in CI on Python 3.11
+and 3.12 together with `ruff`; `main.py` runs end to end with the legacy engine on current `yfinance`
+(1.7); the VectorBT engine is available behind `--engine vectorbt` for anyone with VectorBT installed.
+A reproducible frozen-universe run with committed results is in the "Results" section below. Research
+tooling, not production trading.
 
 This repo is a small research framework for:
 - **Backtesting**: single-asset backtests with basic risk controls + metrics
@@ -74,6 +76,65 @@ To use a different frozen list:
 python main.py --universe-file universe/universe_mean_reversion_manual.txt --start 2018-01-01 --end 2024-01-01 --no-plot
 ```
 
+## Results
+
+Frozen 50-symbol universe, legacy engine, daily bars from 2021-01-04 to 2024-12-31 inclusive. Run on
+2026-10-12 (00:30 UTC) with yfinance 1.7.0; all 50 symbols returned 1005 bars. Produced by:
+
+```bash
+python examples/frozen_universe_backtest.py
+# equivalent to:
+# python examples/frozen_universe_backtest.py --universe-file universe/universe_mean_reversion_manual_50.txt \
+#     --start 2021-01-04 --end 2024-12-31 --capital 100000 --position-size 0.1 --tag frozen50_2021_2024
+```
+
+Engine settings are the `main.py --engine legacy` defaults: 100,000 initial capital per symbol, one long
+position per symbol at a time sized at 10% of current capital, 0.1% commission per side, 5% fixed stop
+loss, take-profit at max(3%, 2x stop distance), 20-bar maximum hold, exit on a neutral signal after 5
+bars, new entries halted at a 20% portfolio drawdown. Signals come from `strategy/indicators.py`. Each
+symbol is an isolated account. Buy-and-hold is fully invested in the same symbol over the same bars and
+uses the engine's Sharpe and drawdown formulas (2% risk-free rate, 252-day annualisation).
+
+| metric | strategy mean | strategy median | buy-and-hold mean | buy-and-hold median |
+|---|---|---|---|---|
+| Total return (%) | -0.19 | -0.21 | 49.84 | 40.74 |
+| Sharpe ratio | -4.96 | -4.50 | 0.39 | 0.42 |
+| Max drawdown (%) | 1.06 | 0.90 | 34.77 | 33.81 |
+| Win rate (%) | 41.50 | 40.00 | | |
+| Trades per symbol | 9.32 | 10.00 | | |
+
+Per-symbol total return, win rate, Sharpe, max drawdown and trade counts for all 50 names are in
+`results/summary.md` (markdown) and `results/frozen50_2021_2024.csv` (machine-readable, also includes
+profit factor and the buy-and-hold columns).
+
+What the numbers show:
+
+- As shipped, the swing-signal rules plus the engine's default exits do not make money on this universe
+  and window: the mean account return over four years is -0.19%, 28 of 50 symbols finish below their
+  starting capital, and the mean win rate is 41.5%.
+- The account is in cash most of the time (about 9 trades per symbol over 1005 bars, each held at most
+  20 bars, at 10% of capital). That is why max drawdowns are around 1%: it reflects idle capital, not
+  risk control.
+- 7 of 50 symbols beat buy-and-hold (JNJ, PFE, UPS, VZ, AMT, O, NEE); in every one of them buy-and-hold
+  was itself negative.
+- The large negative strategy Sharpe values are a property of the formula on an idle account: roughly
+  (0% - 2% risk-free) divided by a very small equity volatility. They do not indicate large losses.
+
+What the numbers do not show:
+
+- Portfolio behaviour. Every symbol is a separate 100,000 account with a single position; there is no
+  capital sharing, no mark-to-market across names, and no position limit across the universe.
+- Transaction realism beyond a flat 0.1% commission: no slippage, no spread, fills at the daily close.
+  Prices are Yahoo `Close`, split-adjusted but not dividend-adjusted, so buy-and-hold excludes dividends.
+- A survivorship-free universe. The list is hand-picked large, long-lived names and ETFs written after
+  the test window; it is not a point-in-time constituent list.
+- Out-of-sample performance. This is a single in-sample run with the default parameters, no held-out
+  period, no walk-forward, and no statistical test. It is a baseline for future changes, not evidence of
+  an edge.
+
+Re-running the command without `data_cache/` downloads from Yahoo again; revised data could change the
+bars slightly. With the cache present the run is offline and reproduces the CSV exactly.
+
 ## Strategy modules
 
 - **Swing indicators**: `strategy/indicators.py` (`SwingTradingIndicators`)
@@ -85,14 +146,25 @@ python main.py --universe-file universe/universe_mean_reversion_manual.txt --sta
 - `docs/MEAN_REVERSION_STRATEGY.md`
 - `docs/API_BATCHING_GUIDE.md`
 - `docs/CHART_ENGINE_GUIDE.md`
+- `docs/ROADMAP.md` (what is done, what is left)
 - `universe/UNIVERSE_GUIDE.md`
+- `results/summary.md` (latest frozen-universe run)
+- `REPOSITORY_STRUCTURE.md`
 
-## Tests
+## Tests and lint
 
-Run the fast (no-network) suite:
+Install the dev extras once (`requirements.txt` plus `ruff`):
 
 ```bash
-python tests/run_all_tests.py
+pip install -r requirements-dev.txt
+```
+
+Fast (no-network) suite, the same command CI runs on every push and pull request:
+
+```bash
+make test          # python -m pytest tests -m "not network and not slow"
+make lint          # ruff check .
+python tests/run_all_tests.py   # alternative runner with --all / --coverage options
 ```
 
 ## Clear local state
