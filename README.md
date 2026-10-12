@@ -1,4 +1,8 @@
-# Quant Strategy Framework (Backtesting + Mean Reversion + Universe Tools)
+# Quant Strategy Framework
+
+Backtesting, mean-reversion signals and frozen-universe tooling for swing-trading research in
+Python. Built by Nihar Maddina and Tushar Gona (2025-2026); this is the maintained public home,
+the original development repository was `tgona/oni_strat_m1`.
 
 Status (October 2026): the fast test suite passes (147 tests, no network), `main.py` runs end to end
 with the legacy engine on current `yfinance` (1.7), and the VectorBT engine is available behind
@@ -103,6 +107,10 @@ python -m utils.clean_local_state
 
 - Market data is from **yfinance** and can be rate-limited; prefer batching/caching and avoid “one call per symbol” loops when possible.
 - This is research tooling, not production trading infrastructure.
+
+## License
+
+MIT, see `LICENSE`.
 
 ## Disclaimer
 

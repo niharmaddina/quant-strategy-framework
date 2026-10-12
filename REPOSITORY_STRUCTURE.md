@@ -5,7 +5,7 @@ This document describes the organized structure of the quant strategy framework 
 ## Directory Structure
 
 ```
-oni_strat_m1/
+quant-strategy-framework/
 ├── backtest/              # Backtesting engine and visualization
 │   ├── __init__.py
 │   ├── engine.py          # Core backtesting engine
