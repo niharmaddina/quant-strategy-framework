@@ -6,9 +6,16 @@ This document describes the organized structure of the quant strategy framework 
 
 ```
 quant-strategy-framework/
-├── backtest/              # Backtesting engine and visualization
+├── .github/
+│   ├── PULL_REQUEST_TEMPLATE.md
+│   └── workflows/ci.yml   # ruff + fast pytest on push / pull request (Python 3.11, 3.12)
+│
+├── backtest/              # Backtesting engines and visualization
 │   ├── __init__.py
-│   ├── engine.py          # Core backtesting engine
+│   ├── engine.py          # Legacy single-position backtesting engine (default for tests/results)
+│   ├── vectorbt_engine.py # Optional VectorBT-backed engine (`--engine vectorbt`)
+│   ├── factory.py         # Engine selection
+│   ├── chart_engine.py    # Chart engine
 │   └── visualizer.py      # Visualization tools
 │
 ├── data/                  # Data fetching and management
@@ -25,8 +32,14 @@ quant-strategy-framework/
 │
 ├── examples/              # Example scripts and demos
 │   ├── example_usage.py   # Basic usage examples
-│   ├── strategy_comparison.py  # Strategy vs buy-and-hold comparison
-│   └── universe_demo.py   # Universe construction demo
+│   ├── frozen_universe_backtest.py  # Reproducible frozen-universe run -> results/ (see README "Results")
+│   ├── strategy_comparison.py  # Strategy vs buy-and-hold comparison (single symbol, with chart)
+│   ├── universe_demo.py   # Universe construction demo
+│   └── ...                # mean-reversion, chart-engine and ML examples
+│
+├── results/               # Committed outputs of examples/frozen_universe_backtest.py
+│   ├── frozen50_2021_2024.csv
+│   └── summary.md
 │
 ├── ml/                    # ML feature/model utilities (optional)
 │   ├── __init__.py
@@ -73,7 +86,10 @@ quant-strategy-framework/
 │
 ├── main.py                # Main entry point
 ├── config.yaml            # Configuration file
+├── pyproject.toml         # Tool configuration (ruff)
+├── Makefile               # make test / lint / fix / example / clean
 ├── requirements.txt       # Python dependencies
+├── requirements-dev.txt   # requirements.txt + ruff
 ├── README.md             # Main documentation
 └── .gitignore            # Git ignore rules
 ```
@@ -107,12 +123,22 @@ quant-strategy-framework/
 
 ### Configuration
 - **`config.yaml`** - Main configuration file
-- **`requirements.txt`** - Python package dependencies
-- **`.gitignore`** - Git ignore patterns
+- **`pyproject.toml`** - ruff configuration (E/F/I rules, 120 columns)
+- **`requirements.txt`** / **`requirements-dev.txt`** - Python package dependencies (dev adds ruff)
+- **`.github/workflows/ci.yml`** - CI: lint + fast tests
+- **`.gitignore`** - Git ignore patterns (`results/*.csv` and `results/*.md` are deliberately tracked)
 
 ## Running Tests
 
-### Unified Test Runner (Recommended)
+### Make targets
+
+```bash
+make test   # fast suite, same command CI runs: python -m pytest tests -m "not network and not slow"
+make lint   # ruff check .
+make fix    # ruff check --fix .
+```
+
+### Unified Test Runner
 
 ```bash
 # Run all fast tests (default)
