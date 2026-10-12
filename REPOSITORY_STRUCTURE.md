@@ -34,6 +34,7 @@ quant-strategy-framework/
 │   ├── example_usage.py   # Basic usage examples
 │   ├── frozen_universe_backtest.py  # Reproducible frozen-universe run -> results/ (see README "Results")
 │   ├── plot_frozen_universe_results.py  # Figures for the README from results/ + data_cache/ (offline)
+│   ├── walk_forward.py    # In-sample grid -> selection -> out-of-sample evaluation (offline from data_cache/)
 │   ├── strategy_comparison.py  # Strategy vs buy-and-hold comparison (single symbol, with chart)
 │   ├── universe_demo.py   # Universe construction demo
 │   └── ...                # mean-reversion, chart-engine and ML examples
@@ -41,7 +42,10 @@ quant-strategy-framework/
 ├── results/               # Committed outputs of the frozen-universe example
 │   ├── frozen50_2021_2024.csv
 │   ├── summary.md
-│   └── figures/           # fig1..fig4 PNGs (150 dpi) + figure_stats.json used by README captions
+│   ├── walk_forward.csv   # per-symbol out-of-sample metrics: default, selected, buy-and-hold
+│   ├── walk_forward_grid.csv  # one row per grid configuration, in-sample and out-of-sample aggregates
+│   ├── walk_forward.md    # walk-forward report (probe, grid, selection, out-of-sample, caveats)
+│   └── figures/           # fig1..fig5 PNGs (150 dpi) + figure_stats.json used by README captions
 │
 ├── ml/                    # ML feature/model utilities (optional)
 │   ├── __init__.py
@@ -68,6 +72,7 @@ quant-strategy-framework/
 │   └── test_*.py          # Test files
 │       ├── test_backtest_engine_comprehensive.py  # 52 tests
 │       ├── test_risk_metrics.py                   # exposure / holding-period / in-market ratio tests
+│       ├── test_walk_forward.py                   # walk-forward split / selection smoke tests (synthetic)
 │       ├── test_universe_comprehensive.py         # 39 tests
 │       ├── test_data_fetcher.py
 │       ├── test_indicators.py
@@ -90,7 +95,7 @@ quant-strategy-framework/
 ├── main.py                # Main entry point
 ├── config.yaml            # Configuration file
 ├── pyproject.toml         # Tool configuration (ruff)
-├── Makefile               # make test / lint / fix / example / clean
+├── Makefile               # make test / lint / fix / example / figures / walk-forward / clean
 ├── requirements.txt       # Python dependencies
 ├── requirements-dev.txt   # requirements.txt + ruff
 ├── README.md             # Main documentation
